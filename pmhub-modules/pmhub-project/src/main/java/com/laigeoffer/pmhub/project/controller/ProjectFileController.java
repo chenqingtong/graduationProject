@@ -54,7 +54,7 @@ public class ProjectFileController {
      * @return
      */
     @PostMapping("/list")
-    @RequiresPermissions("project:file:queryFileList')")
+    @RequiresPermissions("project:file:queryFileList")
     public AjaxResult queryFileList(@RequestBody ProjectFileReqVO projectReqVO) {
         return AjaxResult.success(projectFileService.queryFileList(projectReqVO));
     }
