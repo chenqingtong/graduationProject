@@ -5,12 +5,15 @@ import cn.hutool.core.io.IoUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.laigeoffer.pmhub.base.core.core.domain.PageQuery;
+import com.laigeoffer.pmhub.base.core.core.domain.R;
 import com.laigeoffer.pmhub.base.core.core.page.Table2DataInfo;
+import com.laigeoffer.pmhub.base.core.constant.SecurityConstants;
 import com.laigeoffer.pmhub.base.core.enums.ProjectStatusEnum;
 import com.laigeoffer.pmhub.base.core.exception.ServiceException;
 import com.laigeoffer.pmhub.base.security.utils.SecurityUtils;
 import com.laigeoffer.pmhub.base.core.utils.StringUtils;
 import com.laigeoffer.pmhub.base.core.utils.JsonUtils;
+import com.laigeoffer.pmhub.api.project.ProjectTaskProcessFeignService;
 import com.laigeoffer.pmhub.workflow.core.domain.ProcessQuery;
 import com.laigeoffer.pmhub.workflow.domain.WfApprovalSet;
 import com.laigeoffer.pmhub.workflow.domain.WfDeployForm;
@@ -58,6 +61,7 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
     private final WfApprovalSetMapper wfApprovalSetMapper;
     private final WfTaskProcessMapper wfTaskProcessMapper;
     private final WfMaterialsScrappedProcessMapper wfMaterialsScrappedProcessMapper;
+    private final ProjectTaskProcessFeignService projectTaskProcessFeignService;
 
     @Override
     public Table2DataInfo<WfDeployVo> queryPageList(ProcessQuery processQuery, PageQuery pageQuery) {
@@ -242,14 +246,21 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
 
     @Override
     public boolean updateApprovalSet(ApprovalSetDTO approvalSetDTO, String type) {
-        LambdaQueryWrapper<WfTaskProcess> queryWrapper = new LambdaQueryWrapper<>();
+        String extraId = null;
         if (ProjectStatusEnum.TASK.getStatusName().equals(type)) {
-            queryWrapper.eq(WfTaskProcess::getExtraId, approvalSetDTO.getTaskId()).eq(WfTaskProcess::getType, ProjectStatusEnum.TASK.getStatusName());
+            extraId = approvalSetDTO.getTaskId();
         }
         if (ProjectStatusEnum.PROJECT.getStatusName().equals(type)) {
-            queryWrapper.eq(WfTaskProcess::getExtraId, approvalSetDTO.getProjectId()).eq(WfTaskProcess::getType, ProjectStatusEnum.PROJECT.getStatusName());
+            extraId = approvalSetDTO.getProjectId();
         }
-        WfTaskProcess pt = wfTaskProcessMapper.selectOne(queryWrapper);
+        
+        // 使用 Feign 调用 pmhub-project 服务查询任务流程
+        R<WfTaskProcess> queryResult = projectTaskProcessFeignService.getByExtraIdAndType(
+                extraId, 
+                type, 
+                SecurityConstants.INNER);
+        WfTaskProcess pt = queryResult != null ? queryResult.getData() : null;
+        
         if (pt != null) {
             if ("1".equals(pt.getApproved())) {
                 if (!Objects.equals(wfTaskProcessMapper.selectStatusByTaskId2(approvalSetDTO.getTaskId()), ProjectStatusEnum.NO_STARTED.getStatus())) {
@@ -263,18 +274,26 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
                 pt.setDeploymentId(approvalSetDTO.getDeploymentId());
                 pt.setUpdatedBy(SecurityUtils.getUsername());
                 pt.setUpdatedTime(new Date());
-                wfTaskProcessMapper.updateById(pt);
+                // 使用 Feign 调用更新任务流程
+                R<WfTaskProcess> updateResult = projectTaskProcessFeignService.insertOrUpdate(pt, SecurityConstants.INNER);
+                if (updateResult == null || updateResult.getCode() != 200) {
+                    throw new ServiceException("更新任务流程失败");
+                }
             } else {
                 throw new ServiceException("审批中或者已完成的流程不允许修改审批设置");
             }
         } else {
             // 新增
             WfTaskProcess wfTaskProcess = new WfTaskProcess();
-            wfTaskProcess.setExtraId(approvalSetDTO.getTaskId());
+            wfTaskProcess.setExtraId(extraId);
             wfTaskProcess.setApproved(approvalSetDTO.getApproved());
-            wfTaskProcess.setType(ProjectStatusEnum.TASK.getStatusName());
+            wfTaskProcess.setType(type);
             extracted(approvalSetDTO.getDefinitionId(), approvalSetDTO.getDeploymentId(), wfTaskProcess);
-            wfTaskProcessMapper.insert(wfTaskProcess);
+            // 使用 Feign 调用插入任务流程
+            R<WfTaskProcess> insertResult = projectTaskProcessFeignService.insertOrUpdate(wfTaskProcess, SecurityConstants.INNER);
+            if (insertResult == null || insertResult.getCode() != 200) {
+                throw new ServiceException("插入任务流程失败");
+            }
         }
 
         return true;
@@ -305,9 +324,12 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
                 }
             } else {
                 // 需要审批
-                LambdaQueryWrapper<WfTaskProcess> qw = new LambdaQueryWrapper<>();
-                qw.eq(WfTaskProcess::getExtraId, approvalSetDTO.getTaskId()).eq(WfTaskProcess::getType, ProjectStatusEnum.TASK.getStatusName());
-                WfTaskProcess pt = wfTaskProcessMapper.selectOne(qw);
+                // 使用 Feign 调用 pmhub-project 服务查询任务流程
+                R<WfTaskProcess> queryResult = projectTaskProcessFeignService.getByExtraIdAndType(
+                        approvalSetDTO.getTaskId(), 
+                        ProjectStatusEnum.TASK.getStatusName(), 
+                        SecurityConstants.INNER);
+                WfTaskProcess pt = queryResult != null ? queryResult.getData() : null;
                 if (pt != null && StringUtils.isNotBlank(pt.getInstanceId())) {
                     // 根据 instanceId 查询流程的状态是不是已拒绝
                     HistoricProcessInstance historicProcessInstance = historyService.createHistoricProcessInstanceQuery().processInstanceId(pt.getInstanceId()).singleResult();

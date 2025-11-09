@@ -337,7 +337,7 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             SysUserVO sysUserVO = userMap.get(a.getUserId());
             if (Objects.nonNull(sysUserVO)) {
                 a.setExecutor(sysUserVO.getNickName());
-                a.setCreatedBy(sysUserVO.getNickName());
+                // createdBy 已由SQL查询正确设置，不需要覆盖
             }
         });
         return new PageInfo<>(list);
@@ -900,7 +900,7 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             SysUserVO sysUserVO = userMap.get(a.getUserId());
             if (Objects.nonNull(sysUserVO)) {
                 a.setExecutor(sysUserVO.getNickName());
-                a.setCreatedBy(sysUserVO.getNickName());
+                // createdBy 已由SQL查询正确设置，不需要覆盖
             }
         });
         return new PageInfo<>(list);

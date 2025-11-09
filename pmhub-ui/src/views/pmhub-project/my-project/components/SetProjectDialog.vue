@@ -6,6 +6,8 @@
           <el-card shadow="never">
             <el-row :gutter="20">
               <el-col :span="12">
+                <!-- 封面上传功能已暂时注释 -->
+                <!--
                 <el-upload
                   ref="coverUploadRef"
                   :action="uploadCoverFileUrl"
@@ -24,6 +26,11 @@
                   <i class="el-icon-plus" />
                   <div slot="tip" class="el-upload__tip">项目封面最佳图片比例为 150 * 150</div>
                 </el-upload>
+                -->
+                <div style="text-align: center; padding: 20px; border: 1px dashed #dcdfe6; border-radius: 4px;">
+                  <i class="el-icon-picture" style="font-size: 48px; color: #c0c4cc;"></i>
+                  <div style="margin-top: 10px; color: #909399;">封面上传功能暂时不可用</div>
+                </div>
               </el-col>
               <el-col :span="12">
                 <el-form ref="infoFormRef1" :model="infoFormData" label-width="100px" label-position="left">
@@ -276,11 +283,35 @@ export default {
     },
   },
   data() {
+    // 安全获取 baseApi，避免 undefined
+    const baseApi = (() => {
+      const api = process.env.VUE_APP_BASE_API
+      if (!api || api === 'undefined' || typeof api !== 'string') {
+        return ''
+      }
+      return api
+    })()
+    
+    // 安全构建上传 URL
+    const buildUploadUrl = (path) => {
+      if (!path) return ''
+      if (baseApi) {
+        if (baseApi.endsWith('/') && path.startsWith('/')) {
+          return baseApi.slice(0, -1) + path
+        } else if (!baseApi.endsWith('/') && !path.startsWith('/')) {
+          return baseApi + '/' + path
+        } else {
+          return baseApi + path
+        }
+      }
+      return path
+    }
+    
     return {
       tabActiveName: "基础信息",
 
       /* 基础信息模块 */
-      uploadCoverFileUrl: process.env.VUE_APP_BASE_API + "/project/file/upload",
+      uploadCoverFileUrl: buildUploadUrl("/project/file/upload"),
       uploadCoverFileHeaders: { Authorization: "Bearer " + getToken() },
       uploadCoverFileData: { id: "", type: "cover" },
       coverFileList: [],
@@ -344,7 +375,7 @@ export default {
 
       /* 附件 */
       fileList: [],
-      uploadFileUrl: process.env.VUE_APP_BASE_API + "/project/file/upload",
+      uploadFileUrl: buildUploadUrl("/project/file/upload"),
       uploadFileData: {
         id: "",
         type: "project",
@@ -390,14 +421,74 @@ export default {
     handleCoverUploadSuccess(res) {
       // 上传成功时触发
       this.$modal.msgSuccess("封面上传成功")
-      this.infoFormData.cover = res.data.fileUrl
-      this.coverFileList.push({
-        name: res.data.fileName,
-        url: res.data.fileUrl,
-      })
-      this.getTableData()
-
-      if (res.code === 200) {
+      if (res.code === 200 && res.data && res.data.fileUrl) {
+        // 获取后端返回的文件路径（可能是完整URL或相对路径）
+        let fileUrl = res.data.fileUrl
+        
+        // 确保 baseApi 是有效的字符串，避免 undefined
+        let baseApi = process.env.VUE_APP_BASE_API
+        if (!baseApi || baseApi === 'undefined' || typeof baseApi !== 'string') {
+          baseApi = ''
+        }
+        
+        // 确保 fileUrl 是有效的字符串
+        if (!fileUrl || typeof fileUrl !== 'string') {
+          fileUrl = ''
+        }
+        
+        // 如果返回的是完整URL，提取相对路径部分
+        if (fileUrl && fileUrl.startsWith('http')) {
+          // 检查是否包含BASE_API，如果包含则提取相对路径
+          if (baseApi && fileUrl.includes(baseApi)) {
+            fileUrl = fileUrl.replace(baseApi, '')
+          } else {
+            // 如果是不包含BASE_API的完整URL，尝试提取路径部分
+            // 例如：http://localhost/dev-api/profile/cover/... -> /profile/cover/...
+            try {
+              const urlObj = new URL(fileUrl)
+              fileUrl = urlObj.pathname
+            } catch (e) {
+              console.warn('Failed to parse file URL:', fileUrl)
+            }
+          }
+        }
+        
+        // 确保相对路径以/开头
+        if (fileUrl && !fileUrl.startsWith('/')) {
+          fileUrl = '/' + fileUrl
+        }
+        
+        // 保存相对路径到表单数据（用于提交到后端）
+        this.infoFormData.cover = fileUrl || ''
+        
+        // 构建完整的图片URL用于显示
+        // 确保路径拼接正确，浏览器会自动处理URL编码
+        let imageUrl = ''
+        if (fileUrl) {
+          // 处理路径拼接，确保 baseApi 和 fileUrl 都是有效字符串
+          if (baseApi) {
+            if (baseApi.endsWith('/') && fileUrl.startsWith('/')) {
+              imageUrl = baseApi.slice(0, -1) + fileUrl
+            } else if (!baseApi.endsWith('/') && !fileUrl.startsWith('/')) {
+              imageUrl = baseApi + '/' + fileUrl
+            } else {
+              imageUrl = baseApi + fileUrl
+            }
+          } else {
+            // 如果 baseApi 为空，直接使用 fileUrl
+            imageUrl = fileUrl
+          }
+        }
+        
+        this.coverFileList = [{
+          name: res.data.fileName || "封面图片",
+          url: imageUrl,
+        }]
+        // 更新 projectData 中的 cover，确保再次打开时能正确显示（保存相对路径）
+        if (this.projectData) {
+          this.projectData.cover = fileUrl
+        }
+        this.getTableData()
       } else {
         this.$modal.msgError(res.msg || "上传文件异常")
       }
@@ -416,6 +507,22 @@ export default {
       data.time = undefined // 后端接口不需要该属性
       projectEditApi(data).then((res) => {
         this.$modal.msgSuccess("保存成功")
+        // 更新 projectData，确保再次打开时数据是最新的
+        if (this.projectData) {
+          Object.assign(this.projectData, {
+            cover: this.infoFormData.cover,
+            projectName: this.infoFormData.projectName,
+            projectProcess: this.infoFormData.projectProcess,
+            description: this.infoFormData.description,
+            projectType: this.infoFormData.projectType,
+            status: this.infoFormData.status,
+            published: this.infoFormData.published,
+            userId: this.infoFormData.userId,
+            closeBeginTime: data.closeBeginTime,
+            closeEndTime: data.closeEndTime,
+            stageCode: this.infoFormData.stageCode,
+          })
+        }
         this.getTableData()
         this.$emit("update:visible", false)
       })
@@ -426,11 +533,66 @@ export default {
     },
     handleOpen() {
       // 将项目数据赋值到对话框页面
-      this.coverFileList = this.projectData.cover
-        ? [{ name: "", url: process.env.VUE_APP_BASE_API + this.projectData.cover }]
+      // 优先使用 projectData.cover，如果为空则使用 infoFormData.cover（可能是在当前会话中上传但未保存的）
+      let coverUrl = this.projectData.cover || this.infoFormData.cover
+      
+      // 确保 baseApi 是有效的字符串，避免 undefined
+      let baseApi = process.env.VUE_APP_BASE_API
+      if (!baseApi || baseApi === 'undefined' || typeof baseApi !== 'string') {
+        baseApi = ''
+      }
+      
+      // 如果 coverUrl 是完整URL，提取相对路径部分
+      if (coverUrl && typeof coverUrl === 'string' && coverUrl.startsWith('http')) {
+        // 检查是否包含BASE_API，如果包含则提取相对路径
+        if (baseApi && coverUrl.includes(baseApi)) {
+          coverUrl = coverUrl.replace(baseApi, '')
+        } else {
+          // 如果是不包含BASE_API的完整URL，尝试提取路径部分
+          try {
+            const urlObj = new URL(coverUrl)
+            coverUrl = urlObj.pathname
+          } catch (e) {
+            // URL解析失败，保持原值
+            console.warn('Failed to parse cover URL:', coverUrl)
+          }
+        }
+      }
+      
+      // 确保 coverUrl 是有效的字符串
+      if (!coverUrl || typeof coverUrl !== 'string') {
+        coverUrl = ''
+      }
+      
+      // 确保相对路径以/开头
+      if (coverUrl && !coverUrl.startsWith('/')) {
+        coverUrl = '/' + coverUrl
+      }
+      
+      // 构建完整的图片URL用于显示
+      // 确保路径拼接正确，浏览器会自动处理URL编码
+      let imageUrl = ''
+      if (coverUrl) {
+        // 处理路径拼接，确保 baseApi 和 coverUrl 都是有效字符串
+        if (baseApi) {
+          if (baseApi.endsWith('/') && coverUrl.startsWith('/')) {
+            imageUrl = baseApi.slice(0, -1) + coverUrl
+          } else if (!baseApi.endsWith('/') && !coverUrl.startsWith('/')) {
+            imageUrl = baseApi + '/' + coverUrl
+          } else {
+            imageUrl = baseApi + coverUrl
+          }
+        } else {
+          // 如果 baseApi 为空，直接使用 coverUrl
+          imageUrl = coverUrl
+        }
+      }
+      
+      this.coverFileList = imageUrl
+        ? [{ name: "封面图片", url: imageUrl }]
         : []
       // 赋值基础信息数据
-      this.infoFormData.cover = this.projectData.cover
+      this.infoFormData.cover = coverUrl || ""
       this.infoFormData.projectName = this.projectData.projectName
       this.infoFormData.projectProcess = this.projectData.projectProcess
       this.infoFormData.description = this.projectData.description

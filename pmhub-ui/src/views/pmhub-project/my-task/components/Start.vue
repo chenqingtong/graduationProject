@@ -29,7 +29,7 @@
 
 <script>
 import { startProcessApi } from "@/api/pmhub-project/my-task"
-import { getUserProfile } from "@/api/system/user"
+import { getUserProfile, getUser } from "@/api/system/user"
 
 let INFO_PATH = ""
 let INFO_URL = ""
@@ -85,9 +85,13 @@ export default {
       })
     },
     initData() {
+      console.log("Start组件 initData 被调用")
+      console.log("Start组件接收到的 workFlowable:", this.workFlowable)
       // 验证审批人设置是否存在
       const approvalInfo = this.workFlowable?.approvalInfo
+      console.log("Start组件中的 approvalInfo:", approvalInfo, "类型:", typeof approvalInfo)
       if (!approvalInfo) {
+        console.log("Start组件: approvalInfo为空")
         this.$modal.msgError("审批人设置不完整，请先在任务设置页面设置审批人")
         // 延迟关闭，确保错误提示能显示
         this.$nextTick(() => {
@@ -98,12 +102,19 @@ export default {
       // 解析审批人信息并验证
       try {
         const approvalInfoObj = JSON.parse(approvalInfo)
-        // 检查是否有有效的审批人信息
-        const hasValidApprover = approvalInfoObj.assignee || 
-                                 approvalInfoObj.candidateUsers || 
-                                 approvalInfoObj.candidateGroups ||
+        console.log("Start组件解析后的 approvalInfoObj:", approvalInfoObj)
+        // 检查是否有有效的审批人信息（使用显式检查，避免空字符串被判断为false）
+        const hasValidApprover = (approvalInfoObj.assignee && String(approvalInfoObj.assignee).trim() !== "") || 
+                                 (approvalInfoObj.candidateUsers && String(approvalInfoObj.candidateUsers).trim() !== "") || 
+                                 (approvalInfoObj.candidateGroups && String(approvalInfoObj.candidateGroups).trim() !== "") ||
                                  approvalInfoObj.dataType === "INITIATOR"
+        console.log("Start组件 hasValidApprover:", hasValidApprover,
+                    "assignee:", approvalInfoObj.assignee,
+                    "candidateUsers:", approvalInfoObj.candidateUsers,
+                    "candidateGroups:", approvalInfoObj.candidateGroups,
+                    "dataType:", approvalInfoObj.dataType)
         if (!hasValidApprover) {
+          console.log("Start组件: 审批人信息无效")
           this.$modal.msgError("审批人设置不完整，请先在任务设置页面设置审批人")
           // 延迟关闭，确保错误提示能显示
           this.$nextTick(() => {
@@ -113,7 +124,17 @@ export default {
         }
         // 生成审批人显示文本
         this.approvalInfoText = this.formatApprovalInfo(approvalInfoObj)
+        console.log("Start组件: 验证通过，审批人文本:", this.approvalInfoText)
+        // 如果 text 字段不存在，根据用户ID查询用户信息
+        if (!approvalInfoObj.text || String(approvalInfoObj.text).trim() === "") {
+          this.fetchUserNames(approvalInfoObj).then(userNames => {
+            if (userNames) {
+              this.approvalInfoText = userNames
+            }
+          })
+        }
       } catch (e) {
+        console.error("Start组件: 解析approvalInfo失败:", e)
         this.$modal.msgError("审批人设置不完整，请先在任务设置页面设置审批人")
         // 延迟关闭，确保错误提示能显示
         this.$nextTick(() => {
@@ -127,16 +148,76 @@ export default {
       if (approvalInfoObj.dataType === "INITIATOR") {
         return "发起人的直属上级"
       }
-      if (approvalInfoObj.assignee) {
-        return approvalInfoObj.assignee
+      // 优先使用 text 字段（保存的是用户名），如果没有再根据ID查询
+      if (approvalInfoObj.text && String(approvalInfoObj.text).trim() !== "") {
+        return approvalInfoObj.text
       }
-      if (approvalInfoObj.candidateUsers && approvalInfoObj.candidateUsers.length > 0) {
-        return approvalInfoObj.candidateUsers.join(", ")
+      // 如果没有 text 字段，先返回临时文本，后续会通过 fetchUserNames 异步查询
+      if (approvalInfoObj.assignee && String(approvalInfoObj.assignee).trim() !== "") {
+        return "查询中..."
       }
-      if (approvalInfoObj.candidateGroups && approvalInfoObj.candidateGroups.length > 0) {
-        return approvalInfoObj.candidateGroups.join(", ")
+      // candidateUsers 可能是字符串（逗号分隔）或数组
+      if (approvalInfoObj.candidateUsers) {
+        const candidateUsersStr = String(approvalInfoObj.candidateUsers).trim()
+        if (candidateUsersStr !== "") {
+          return "查询中..."
+        }
+      }
+      // candidateGroups 可能是字符串（逗号分隔）或数组
+      if (approvalInfoObj.candidateGroups) {
+        const candidateGroupsStr = String(approvalInfoObj.candidateGroups).trim()
+        if (candidateGroupsStr !== "") {
+          // 如果是数组，使用 join；如果是字符串，直接返回
+          if (Array.isArray(approvalInfoObj.candidateGroups)) {
+            return candidateGroupsStr.join(", ")
+          } else {
+            return candidateGroupsStr
+          }
+        }
       }
       return "已设置"
+    },
+    // 根据用户ID查询用户名称
+    async fetchUserNames(approvalInfoObj) {
+      try {
+        const userIds = []
+        // 收集需要查询的用户ID
+        if (approvalInfoObj.assignee && String(approvalInfoObj.assignee).trim() !== "") {
+          userIds.push(String(approvalInfoObj.assignee).trim())
+        }
+        if (approvalInfoObj.candidateUsers) {
+          const candidateUsersStr = String(approvalInfoObj.candidateUsers).trim()
+          if (candidateUsersStr !== "") {
+            // 如果是数组，直接使用；如果是字符串，按逗号分割
+            if (Array.isArray(approvalInfoObj.candidateUsers)) {
+              userIds.push(...approvalInfoObj.candidateUsers.map(id => String(id).trim()))
+            } else {
+              userIds.push(...candidateUsersStr.split(",").map(id => id.trim()).filter(id => id !== ""))
+            }
+          }
+        }
+        if (userIds.length === 0) {
+          return null
+        }
+        // 去重
+        const uniqueUserIds = [...new Set(userIds)]
+        // 并行查询所有用户信息
+        const userPromises = uniqueUserIds.map(userId => {
+          return getUser(userId).then(res => {
+            // 根据实际API返回结构调整
+            const user = res.data || res
+            return user.nickName || user.userName || userId
+          }).catch(() => {
+            // 查询失败时返回ID
+            return userId
+          })
+        })
+        const userNames = await Promise.all(userPromises)
+        return userNames.join(", ")
+      } catch (error) {
+        console.error("查询用户信息失败:", error)
+        return null
+      }
     },
     // 提交审批
     handleSubmit() {

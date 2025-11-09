@@ -46,7 +46,7 @@
         where pt.task_pid = #{taskId} order by pt.created_time desc
     </select>
     <select id="list" resultType="com.laigeoffer.pmhub.project.domain.vo.project.task.TaskResVO">
-        select ptp.approved, ptp.instance_id as procInsId, ptp.deployment_id as deployId, ptp.definition_id, ptp.task_id as taskProcessId,p.project_name, pt.task_process,pt.id as taskId, pt.task_name, ps.stage_name, pt.status, pt.execute_status, pt.task_priority, pt.created_time,pt.close_time,pt.begin_time,pt.end_time,pm.user_id from pmhub_project_task pt
+        select ptp.approved, ptp.instance_id as procInsId, ptp.deployment_id as deployId, ptp.definition_id, ptp.task_id as taskProcessId,p.project_name, pt.task_process,pt.id as taskId, pt.task_name, ps.stage_name, pt.status, pt.execute_status, pt.task_priority, pt.created_by as createdBy, pt.created_time,pt.close_time,pt.begin_time,pt.end_time,pm.user_id, pt.user_id as userId from pmhub_project_task pt
         left join pmhub_project p on p.id = pt.project_id
         left join pmhub_project_member pm on pt.id = pm.pt_id
         left join pmhub_project_stage ps on pt.project_stage_id = ps.id
@@ -61,6 +61,9 @@
         <if test="data.stageCode != null">
             and ps.stage_code = #{data.stageCode}
         </if>
+        <if test="data.createdBy != null and data.createdBy != ''">
+            and pt.created_by = #{data.createdBy}
+        </if>
         <if test="data.executeStatus != null">
             and pt.execute_status = #{data.executeStatus}
         </if>
@@ -73,17 +76,20 @@
         order by pt.created_time desc
     </select>
     <select id="taskList" resultType="com.laigeoffer.pmhub.project.domain.vo.project.task.TaskResVO">
-        select ptp.approved, ptp.instance_id as procInsId, ptp.deployment_id as deployId, ptp.definition_id, ptp.task_id as taskProcessId,pt.project_id,p.project_name,pt.task_process,pt.id as taskId, pt.task_name, ps.stage_name, pt.status, pt.execute_status, pt.task_priority, pt.created_time,pt.close_time, pt.user_id, pt.begin_time,pt.end_time
+        select ptp.approved, ptp.instance_id as procInsId, ptp.deployment_id as deployId, ptp.definition_id, ptp.task_id as taskProcessId,pt.project_id,p.project_name,pt.task_process,pt.id as taskId, pt.task_name, ps.stage_name, pt.status, pt.execute_status, pt.task_priority, pt.created_by as createdBy, pt.created_time,pt.close_time,pt.begin_time,pt.end_time, pt.user_id as userId
         from pmhub_project_task pt
         left join pmhub_project p on pt.project_id = p.id
         left join pmhub_project_stage ps on pt.project_stage_id = ps.id
-        left join pmhub_project_task_process ptp on pt.id = ptp.extra_id and ptp.type = 'task' and ptp.type = 'task'
+        left join pmhub_project_task_process ptp on pt.id = ptp.extra_id and ptp.type = 'task'
         where pt.deleted = 0 and pt.project_id = #{data.projectId}
         <if test="data.taskName != null and data.taskName != ''">
             and pt.task_name = #{data.taskName}
         </if>
         <if test="data.stageCode != null">
             and ps.stage_code = #{data.stageCode}
+        </if>
+        <if test="data.createdBy != null and data.createdBy != ''">
+            and pt.created_by = #{data.createdBy}
         </if>
         <if test="data.executeStatus != null">
             and pt.execute_status = #{data.executeStatus}

@@ -87,10 +87,10 @@ export default {
       // 解析审批人信息并验证
       try {
         const approvalInfoObj = JSON.parse(approvalInfo)
-        // 检查是否有有效的审批人信息
-        const hasValidApprover = approvalInfoObj.assignee || 
-                                 approvalInfoObj.candidateUsers || 
-                                 approvalInfoObj.candidateGroups ||
+        // 检查是否有有效的审批人信息（使用显式检查，避免空字符串被判断为false）
+        const hasValidApprover = (approvalInfoObj.assignee && String(approvalInfoObj.assignee).trim() !== "") || 
+                                 (approvalInfoObj.candidateUsers && String(approvalInfoObj.candidateUsers).trim() !== "") || 
+                                 (approvalInfoObj.candidateGroups && String(approvalInfoObj.candidateGroups).trim() !== "") ||
                                  approvalInfoObj.dataType === "INITIATOR"
         if (!hasValidApprover) {
           this.$modal.msgError("审批人设置不完整，请先设置审批人")

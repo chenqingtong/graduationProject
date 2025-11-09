@@ -563,10 +563,10 @@ export default {
         try {
           const approvalInfoObj = JSON.parse(approvalInfo)
           console.log("解析后的approvalInfoObj:", approvalInfoObj)
-          // 检查是否有有效的审批人信息
-          const hasValidApprover = approvalInfoObj.assignee || 
-                                   approvalInfoObj.candidateUsers || 
-                                   approvalInfoObj.candidateGroups ||
+          // 检查是否有有效的审批人信息（使用显式检查，避免空字符串被判断为false）
+          const hasValidApprover = (approvalInfoObj.assignee && String(approvalInfoObj.assignee).trim() !== "") || 
+                                   (approvalInfoObj.candidateUsers && String(approvalInfoObj.candidateUsers).trim() !== "") || 
+                                   (approvalInfoObj.candidateGroups && String(approvalInfoObj.candidateGroups).trim() !== "") ||
                                    approvalInfoObj.dataType === "INITIATOR"
           console.log("hasValidApprover:", hasValidApprover, 
                       "assignee:", approvalInfoObj.assignee,
@@ -663,9 +663,22 @@ export default {
       // 查询审批设置数据
       const res = await getApprovalSetApi("task", { taskId })
       console.log("获取审批设置API返回结果:", res)
-      console.log("审批设置数据:", res.data)
-      this.workFlowable = res.data
+      console.log("审批设置数据类型:", typeof res)
+      console.log("res.data:", res.data)
+      console.log("res.code:", res.code)
+      // 响应拦截器返回的是 res.data，即整个响应体 {code, msg, data}
+      // 如果响应体有 data 字段，说明是标准格式 {code, msg, data}，需要访问 res.data
+      // 如果响应体直接就是数据对象，说明响应拦截器已经处理过了，直接使用 res
+      if (res && res.data && (res.code !== undefined || res.msg !== undefined)) {
+        // 标准格式：{code, msg, data}
+        this.workFlowable = res.data
+      } else {
+        // 直接是数据对象
+        this.workFlowable = res
+      }
       console.log("设置后的workFlowable:", this.workFlowable)
+      console.log("workFlowable.approved:", this.workFlowable?.approved)
+      console.log("workFlowable.approvalInfo:", this.workFlowable?.approvalInfo)
     },
 
     /* pager-wrapper 模块 */

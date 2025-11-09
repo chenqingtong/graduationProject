@@ -333,9 +333,69 @@ export default {
     })
     getProjectDoingApi().then((res) => {
       // 获取进行中的项目
+      // 确保 baseApi 是有效的字符串，避免 undefined
+      let baseApi = process.env.VUE_APP_BASE_API
+      if (!baseApi || baseApi === 'undefined' || typeof baseApi !== 'string') {
+        baseApi = ''
+      }
+      
       for (let i = 0; i < res.data.length; i++) {
-        res.data[i].cover = process.env.VUE_APP_BASE_API + res.data[i].cover
-        console.log('Image URL:', res.data[i].cover); // 打印完整的图片路径
+        let coverUrl = res.data[i].cover
+        
+        // 确保 coverUrl 是有效的字符串
+        if (!coverUrl || typeof coverUrl !== 'string') {
+          coverUrl = ''
+        }
+        
+        // 如果 coverUrl 为空，跳过处理
+        if (!coverUrl) {
+          res.data[i].cover = ''
+          console.log('Image URL: (empty)')
+          continue
+        }
+        
+        // 如果 coverUrl 已经是完整URL（http/https），提取路径部分
+        if (coverUrl.startsWith('http://') || coverUrl.startsWith('https://')) {
+          try {
+            const urlObj = new URL(coverUrl)
+            coverUrl = urlObj.pathname
+          } catch (e) {
+            console.warn('Failed to parse cover URL:', coverUrl)
+            // 如果解析失败，保持原样
+          }
+        }
+        
+        // 检查 coverUrl 是否已经包含 baseApi 前缀
+        // 如果已经包含，直接使用，避免重复拼接
+        if (baseApi && coverUrl.startsWith(baseApi)) {
+          res.data[i].cover = coverUrl
+          console.log('Image URL:', res.data[i].cover)
+          continue
+        }
+        
+        // 确保相对路径以/开头
+        if (!coverUrl.startsWith('/')) {
+          coverUrl = '/' + coverUrl
+        }
+        
+        // 构建完整的图片URL
+        let imageUrl = ''
+        if (baseApi) {
+          // 处理路径拼接，确保 baseApi 和 coverUrl 都是有效字符串
+          if (baseApi.endsWith('/') && coverUrl.startsWith('/')) {
+            imageUrl = baseApi.slice(0, -1) + coverUrl
+          } else if (!baseApi.endsWith('/') && !coverUrl.startsWith('/')) {
+            imageUrl = baseApi + '/' + coverUrl
+          } else {
+            imageUrl = baseApi + coverUrl
+          }
+        } else {
+          // 如果 baseApi 为空，直接使用 coverUrl
+          imageUrl = coverUrl
+        }
+        
+        res.data[i].cover = imageUrl
+        console.log('Image URL:', res.data[i].cover)
       }
       this.projectList = res.data
     })

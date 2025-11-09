@@ -2,6 +2,7 @@ package com.laigeoffer.pmhub.framework.config;
 
 
 import org.apache.catalina.*;
+import org.apache.catalina.connector.Connector;
 import org.apache.catalina.session.ManagerBase;
 import org.apache.commons.logging.Log;
 import org.apache.tomcat.util.ExceptionUtils;
@@ -20,6 +21,15 @@ public class TomcatServletWebServerFactorySelf extends TomcatServletWebServerFac
     protected void postProcessContext(Context context) {
         super.postProcessContext(context);
         context.setManager(new NoSessionManager(logger));
+    }
+
+    @Override
+    protected void customizeConnector(Connector connector) {
+        super.customizeConnector(connector);
+        // 设置最大POST请求大小为200MB（209715200字节）
+        connector.setMaxPostSize(209715200);
+        // 设置最大请求体大小为200MB（209715200字节）
+        connector.setMaxSwallowSize(209715200);
     }
 
     public static class NoSessionManager extends ManagerBase implements Lifecycle {
