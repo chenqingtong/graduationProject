@@ -1599,11 +1599,32 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
                 }
             }
         } else if ("INITIATOR".equals(dataType)) {
-            // 发起人
-            WfApprovalTask task = createApprovalTask(extraId, type, title, url, initiatorId.toString(), "user", initiatorId.toString(), initiatorId.toString(), initiatorName);
-            task.setApproverName(initiatorName);
-            approvalTasks.add(task);
-            firstTaskId = task.getId();
+            // 发起人（按业务含义：发起人的直属上级）
+            SysUser initiatorUser = wfCopyMapper.selectUserById(initiatorId);
+            String leaderIdsStr = initiatorUser != null ? initiatorUser.getLeaderId() : null;
+            if (StringUtils.isNotBlank(leaderIdsStr)) {
+                String[] leaderIds = leaderIdsStr.split(",");
+                for (String leaderId : leaderIds) {
+                    if (StringUtils.isBlank(leaderId)) {
+                        continue;
+                    }
+                    leaderId = leaderId.trim();
+                    SysUser leader = wfCopyMapper.selectUserById(Long.parseLong(leaderId));
+                    String leaderName = leader != null ? leader.getNickName() : "";
+                    WfApprovalTask task = createApprovalTask(extraId, type, title, url, leaderId, "user", leaderId, initiatorId.toString(), initiatorName);
+                    task.setApproverName(leaderName);
+                    approvalTasks.add(task);
+                    if (firstTaskId == null) {
+                        firstTaskId = task.getId();
+                    }
+                }
+            } else {
+                // 无直属上级配置时，回退为由发起人自审
+                WfApprovalTask task = createApprovalTask(extraId, type, title, url, initiatorId.toString(), "user", initiatorId.toString(), initiatorId.toString(), initiatorName);
+                task.setApproverName(initiatorName);
+                approvalTasks.add(task);
+                firstTaskId = task.getId();
+            }
         }
         
         // 批量保存审批任务
