@@ -40,11 +40,11 @@
             )
             </if>
             <if test="deptIds != null and deptIds.size() > 0">
-            OR (approver_type = 'dept' AND approver_value IN
-                <foreach collection="deptIds" item="deptId" open="(" separator="," close=")">
-                    #{deptId}
+            OR (approver_type = 'dept' AND (
+                <foreach collection="deptIds" item="deptId" separator=" OR ">
+                    FIND_IN_SET(#{deptId}, approver_value) > 0
                 </foreach>
-            )
+            ))
             </if>
         )
         ORDER BY created_time DESC
@@ -104,11 +104,11 @@
             )
             </if>
             <if test="deptIds != null and deptIds.size() > 0">
-            OR (approver_type = 'dept' AND approver_value IN
-                <foreach collection="deptIds" item="deptId" open="(" separator="," close=")">
-                    #{deptId}
+            OR (approver_type = 'dept' AND (
+                <foreach collection="deptIds" item="deptId" separator=" OR ">
+                    FIND_IN_SET(#{deptId}, approver_value) > 0
                 </foreach>
-            )
+            ))
             </if>
         )
         ORDER BY approval_time DESC

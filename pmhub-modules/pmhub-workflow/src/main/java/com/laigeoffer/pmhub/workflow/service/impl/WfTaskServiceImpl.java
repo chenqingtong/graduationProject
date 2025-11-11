@@ -5,6 +5,9 @@ import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.laigeoffer.pmhub.api.project.ProjectTaskProcessFeignService;
+import com.laigeoffer.pmhub.base.core.constant.SecurityConstants;
+import com.laigeoffer.pmhub.base.core.core.domain.R;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.SysUser;
 import com.laigeoffer.pmhub.base.core.exception.ServiceException;
 import com.laigeoffer.pmhub.base.security.utils.SecurityUtils;
@@ -64,6 +67,7 @@ public class WfTaskServiceImpl extends FlowServiceFactory implements IWfTaskServ
     private final IWfCopyService copyService;
     private final WfCopyMapper wfCopyMapper;
     private final WfTaskProcessMapper wfTaskProcessMapper;
+    private final ProjectTaskProcessFeignService projectTaskProcessFeignService;
 //    private final WfMaterialsScrappedProcessMapper wfMaterialsScrappedProcessMapper;
 
     @Autowired
@@ -449,20 +453,25 @@ public class WfTaskServiceImpl extends FlowServiceFactory implements IWfTaskServ
         runtimeService.deleteProcessInstance(bo.getProcInsId(), "取消原因");
 
         // 更新关联关系
-        LambdaQueryWrapper<WfTaskProcess> qw = new LambdaQueryWrapper<>();
-        qw.eq(WfTaskProcess::getInstanceId, bo.getProcInsId());
-        WfTaskProcess wfTaskProcess = wfTaskProcessMapper.selectOne(qw);
+        R<WfTaskProcess> processResponse = projectTaskProcessFeignService.getByInstanceId(bo.getProcInsId(), SecurityConstants.INNER);
+        WfTaskProcess wfTaskProcess = processResponse != null ? processResponse.getData() : null;
         if (wfTaskProcess != null) {
             wfTaskProcess.setInstanceId(null);
             wfTaskProcess.setTaskId(null);
             wfTaskProcess.setUrl(null);
             wfTaskProcess.setUpdatedBy(SecurityUtils.getUsername());
             wfTaskProcess.setUpdatedTime(new Date());
-            wfTaskProcessMapper.updateById(wfTaskProcess);
+            R<WfTaskProcess> updateResponse = projectTaskProcessFeignService.insertOrUpdate(wfTaskProcess, SecurityConstants.INNER);
+            if (updateResponse == null || updateResponse.getCode() != 200) {
+                log.warn("更新任务流程关联关系失败: {}", updateResponse != null ? updateResponse.getMsg() : "response is null");
+            }
             // 更新审核状态
             wfTaskProcessMapper.updateProcessState2(wfTaskProcess.getExtraId());
             // 取消修改任务状态为未开始
-            wfTaskProcessMapper.updateTaskStatus2(wfTaskProcess.getExtraId());
+            R<Void> resetResult = projectTaskProcessFeignService.resetTaskStatus(wfTaskProcess.getExtraId(), SecurityConstants.INNER);
+            if (resetResult.getCode() != 200) {
+                log.warn("重置项目任务状态失败: {}", resetResult.getMsg());
+            }
         }
         // 取消报废流程之后更新相应的审批申请
 //        LambdaQueryWrapper<WfMaterialsScrappedProcess> qw2 = new LambdaQueryWrapper<>();

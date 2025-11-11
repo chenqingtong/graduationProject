@@ -5,7 +5,9 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.BetweenFormatter;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.laigeoffer.pmhub.api.project.ProjectTaskProcessFeignService;
+import com.laigeoffer.pmhub.base.core.constant.SecurityConstants;
+import com.laigeoffer.pmhub.base.core.core.domain.R;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.SysDept;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.SysRole;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.SysUser;
@@ -20,7 +22,6 @@ import com.laigeoffer.pmhub.workflow.domain.vo.WfFormVo;
 import com.laigeoffer.pmhub.workflow.domain.vo.WfTaskVo;
 import com.laigeoffer.pmhub.workflow.factory.FlowServiceFactory;
 import com.laigeoffer.pmhub.workflow.mapper.WfCopyMapper;
-import com.laigeoffer.pmhub.workflow.mapper.WfTaskProcessMapper;
 import com.laigeoffer.pmhub.workflow.service.IWfDeployFormService;
 import com.laigeoffer.pmhub.workflow.service.IWfInstanceService;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +49,7 @@ public class WfInstanceServiceImpl extends FlowServiceFactory implements IWfInst
 
     private final IWfDeployFormService deployFormService;
     private final WfCopyMapper wfCopyMapper;
-    private final WfTaskProcessMapper wfTaskProcessMapper;
+    private final ProjectTaskProcessFeignService projectTaskProcessFeignService;
 
     /**
      * 结束流程实例
@@ -101,14 +102,18 @@ public class WfInstanceServiceImpl extends FlowServiceFactory implements IWfInst
         // 删除历史流程实例
         historyService.deleteHistoricProcessInstance(instanceId);
         // 更新关联关系
-        LambdaQueryWrapper<WfTaskProcess> qw = new LambdaQueryWrapper<>();
-        qw.eq(WfTaskProcess::getInstanceId, instanceId);
-        WfTaskProcess wfTaskProcess = wfTaskProcessMapper.selectOne(qw);
-        wfTaskProcess.setInstanceId(null);
-        wfTaskProcess.setTaskId(null);
-        wfTaskProcess.setUpdatedBy(SecurityUtils.getUsername());
-        wfTaskProcess.setUpdatedTime(new Date());
-        wfTaskProcessMapper.updateById(wfTaskProcess);
+        R<WfTaskProcess> response = projectTaskProcessFeignService.getByInstanceId(instanceId, SecurityConstants.INNER);
+        WfTaskProcess wfTaskProcess = response != null ? response.getData() : null;
+        if (wfTaskProcess != null) {
+            wfTaskProcess.setInstanceId(null);
+            wfTaskProcess.setTaskId(null);
+            wfTaskProcess.setUpdatedBy(SecurityUtils.getUsername());
+            wfTaskProcess.setUpdatedTime(new Date());
+            R<WfTaskProcess> updateResult = projectTaskProcessFeignService.insertOrUpdate(wfTaskProcess, SecurityConstants.INNER);
+            if (updateResult == null || updateResult.getCode() != 200) {
+                log.warn("更新任务流程关联关系失败: {}, instanceId: {}", updateResult != null ? updateResult.getMsg() : "response is null", instanceId);
+            }
+        }
     }
 
     /**

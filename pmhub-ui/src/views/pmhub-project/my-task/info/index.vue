@@ -431,10 +431,16 @@ export default {
         requireLeadingSpace: false,
         values: [],
       },
+      // 标记是否处于初始化赋值阶段，避免触发描述编辑器的自动保存
+      isInitializing: false,
+      // 描述编辑器防抖计时器
+      timerId: undefined,
     }
   },
   methods: {
     init() {
+      // 进入初始化阶段，屏蔽描述编辑器的自动保存
+      this.isInitializing = true
       // 获取任务详情
       getTaskDetailApi(this.taskId).then((res) => {
         this.projectId = res.data.projectId
@@ -472,6 +478,9 @@ export default {
         getStageListApi(this.projectId).then((res) => {
           this.stageOptions = res.data
         })
+      }).finally(() => {
+        // 初始化结束，允许描述编辑器触发自动保存
+        this.isInitializing = false
       })
       getProjectListApi().then((res) => {
         // 获取项目列表
@@ -533,21 +542,15 @@ export default {
           this.init()
         })
     },
-    // 防抖
+    // 防抖：描述编辑器输入时触发
     updateTaskInfoStabilization() {
-      if (this.timerId) {
-        clearTimeout(this.timerId) // 停止之前的计时
-      }
-      if (this.timerId === undefined) {
-        // 进入页面时会对富文本框赋值，会触发该函数，这里是为了免去刚进入页面就调更新接口
-        this.timerId = null
-      } else {
-        this.timerId = setTimeout(() => {
-          // 重新计时
-          this.updateTaskInfo()
-          this.timerId = null
-        }, 2000)
-      }
+      // 初始化赋值阶段，不触发自动保存
+      if (this.isInitializing) return
+      if (this.timerId) clearTimeout(this.timerId)
+      this.timerId = setTimeout(() => {
+        this.updateTaskInfo()
+        this.timerId = undefined
+      }, 2000)
     },
 
     /* 描述模块 */

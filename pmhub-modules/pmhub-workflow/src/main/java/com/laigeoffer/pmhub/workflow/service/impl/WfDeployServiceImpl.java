@@ -27,7 +27,6 @@ import com.laigeoffer.pmhub.workflow.factory.FlowServiceFactory;
 import com.laigeoffer.pmhub.workflow.mapper.WfApprovalSetMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfDeployFormMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfMaterialsScrappedProcessMapper;
-import com.laigeoffer.pmhub.workflow.mapper.WfTaskProcessMapper;
 import com.laigeoffer.pmhub.workflow.service.IWfDeployService;
 import com.laigeoffer.pmhub.workflow.utils.ProcessUtils;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +58,6 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
     private final RepositoryService repositoryService;
     private final WfDeployFormMapper deployFormMapper;
     private final WfApprovalSetMapper wfApprovalSetMapper;
-    private final WfTaskProcessMapper wfTaskProcessMapper;
     private final WfMaterialsScrappedProcessMapper wfMaterialsScrappedProcessMapper;
     private final ProjectTaskProcessFeignService projectTaskProcessFeignService;
 
@@ -263,7 +261,9 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
         
         if (pt != null) {
             if ("1".equals(pt.getApproved())) {
-                if (!Objects.equals(wfTaskProcessMapper.selectStatusByTaskId2(approvalSetDTO.getTaskId()), ProjectStatusEnum.NO_STARTED.getStatus())) {
+                R<Integer> statusResult = projectTaskProcessFeignService.getTaskStatus(approvalSetDTO.getTaskId(), SecurityConstants.INNER);
+                Integer taskStatus = statusResult != null ? statusResult.getData() : null;
+                if (!Objects.equals(taskStatus, ProjectStatusEnum.NO_STARTED.getStatus())) {
                     throw new ServiceException("需将任务状态变为未开始才能修改审批设置");
                 }
             }
@@ -319,7 +319,9 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
         } else {
             // 无需审批
             if ("1".equals(wfApprovalSet.getApproved())) {
-                if (!Objects.equals(wfTaskProcessMapper.selectStatusByTaskId2(approvalSetDTO.getTaskId()), ProjectStatusEnum.NO_STARTED.getStatus())) {
+                R<Integer> statusResult = projectTaskProcessFeignService.getTaskStatus(approvalSetDTO.getTaskId(), SecurityConstants.INNER);
+                Integer taskStatus = statusResult != null ? statusResult.getData() : null;
+                if (!Objects.equals(taskStatus, ProjectStatusEnum.NO_STARTED.getStatus())) {
                     throw new ServiceException("需将任务状态变为未开始才能修改审批设置");
                 }
             } else {
@@ -415,9 +417,8 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean insertApprovalSet() {
-        LambdaQueryWrapper<WfTaskProcess> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(WfTaskProcess::getType, ProjectStatusEnum.TASK.getStatusName());
-        List<WfTaskProcess> list = wfTaskProcessMapper.selectList(queryWrapper);
+        R<List<WfTaskProcess>> response = projectTaskProcessFeignService.listByType(ProjectStatusEnum.TASK.getStatusName(), SecurityConstants.INNER);
+        List<WfTaskProcess> list = response != null && response.getCode() == 200 ? response.getData() : Collections.emptyList();
         if (CollectionUtils.isNotEmpty(list)) {
             log.info("开始优化的任务审批设置的数量:{}", list.size());
             list.forEach(wfTaskProcess -> {
@@ -433,7 +434,10 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
                 wfApprovalSet.setExtraId(wfTaskProcess.getExtraId());
                 wfApprovalSetMapper.insert(wfApprovalSet);
                 if ("1".equals(wfTaskProcess.getApproved())) {
-                    wfTaskProcessMapper.deleteById(wfTaskProcess);
+                    R<Void> deleteResponse = projectTaskProcessFeignService.deleteById(wfTaskProcess.getId(), SecurityConstants.INNER);
+                    if (deleteResponse == null || deleteResponse.getCode() != 200) {
+                        log.warn("删除任务流程失败: {}, taskId: {}", deleteResponse != null ? deleteResponse.getMsg() : "response is null", wfTaskProcess.getTaskId());
+                    }
                     log.info("开始删除的任务id:{}", wfTaskProcess.getTaskId());
                 }
             });
@@ -445,25 +449,30 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
 
     @Override
     public WfTaskProcess insertWfTaskProcess(String extraId, String type, String approved, String definitionId, String deploymentId) {
-        LambdaQueryWrapper<WfTaskProcess> qw = new LambdaQueryWrapper<>();
-        qw.eq(WfTaskProcess::getExtraId, extraId).eq(WfTaskProcess::getType, type);
-        WfTaskProcess wp = wfTaskProcessMapper.selectOne(qw);
+        R<WfTaskProcess> response = projectTaskProcessFeignService.getByExtraIdAndType(extraId, type, SecurityConstants.INNER);
+        WfTaskProcess wp = response != null ? response.getData() : null;
         if (wp != null) {
             wp.setApproved(approved);
             wp.setDefinitionId(definitionId);
             wp.setDeploymentId(deploymentId);
             wp.setUpdatedBy(SecurityUtils.getUsername());
             wp.setUpdatedTime(new Date());
-            wfTaskProcessMapper.updateById(wp);
-            return wp;
+            R<WfTaskProcess> updateResponse = projectTaskProcessFeignService.insertOrUpdate(wp, SecurityConstants.INNER);
+            if (updateResponse == null || updateResponse.getCode() != 200) {
+                throw new ServiceException("更新任务流程失败");
+            }
+            return updateResponse.getData();
         } else {
             WfTaskProcess wfTaskProcess = new WfTaskProcess();
             wfTaskProcess.setExtraId(extraId);
             wfTaskProcess.setType(type);
             wfTaskProcess.setApproved(approved);
             extracted(definitionId, deploymentId, wfTaskProcess);
-            wfTaskProcessMapper.insert(wfTaskProcess);
-            return wfTaskProcess;
+            R<WfTaskProcess> insertResponse = projectTaskProcessFeignService.insertOrUpdate(wfTaskProcess, SecurityConstants.INNER);
+            if (insertResponse == null || insertResponse.getCode() != 200) {
+                throw new ServiceException("新增任务流程失败");
+            }
+            return insertResponse.getData();
         }
     }
 
@@ -561,32 +570,37 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
     @Override
     public List<WfTaskProcess> selectList(List<String> taskId) {
         // 查询是否存在关联关系
-        LambdaQueryWrapper<WfTaskProcess> qw = new LambdaQueryWrapper<>();
-        qw.in(WfTaskProcess::getExtraId, taskId);
-        return wfTaskProcessMapper.selectList(qw);
+        R<List<WfTaskProcess>> response = projectTaskProcessFeignService.listByExtraIds(taskId, SecurityConstants.INNER);
+        if (response == null || response.getCode() != 200) {
+            log.warn("根据任务ID集合查询任务流程失败: {}", response != null ? response.getMsg() : "response is null");
+            return Collections.emptyList();
+        }
+        return response.getData();
     }
 
     @Override
     public List<WfTaskProcess> selectWfTaskProcessList(List<String> extraId, String type) {
         List<WfTaskProcess> list = new ArrayList<>(10);
         if (CollectionUtils.isNotEmpty(extraId)) {
-            LambdaQueryWrapper<WfTaskProcess> qw = new LambdaQueryWrapper<>();
-            qw.in(WfTaskProcess::getExtraId, extraId).eq(WfTaskProcess::getType, type);
-            list = wfTaskProcessMapper.selectList(qw);
+            Map<String, Object> params = new HashMap<>(2);
+            params.put("extraIds", extraId);
+            params.put("type", type);
+            R<List<WfTaskProcess>> response = projectTaskProcessFeignService.listByExtraIdsAndType(params, SecurityConstants.INNER);
+            if (response == null || response.getCode() != 200) {
+                log.warn("根据业务ID集合和类型查询任务流程失败: {}", response != null ? response.getMsg() : "response is null");
+                return list;
+            }
+            list = response.getData();
         }
         return list;
     }
 
     @Override
     public void updateProviderApproval(String providerId) {
-        LambdaQueryWrapper<WfTaskProcess> qw = new LambdaQueryWrapper<>();
-        qw.eq(WfTaskProcess::getExtraId, providerId);
-        WfTaskProcess wfTaskProcess = wfTaskProcessMapper.selectOne(qw);
-        wfTaskProcess.setTaskId(null);
-        wfTaskProcess.setInstanceId(null);
-        wfTaskProcess.setUpdatedBy(SecurityUtils.getUsername());
-        wfTaskProcess.setUpdatedTime(new Date());
-        wfTaskProcessMapper.updateById(wfTaskProcess);
+        R<WfTaskProcess> response = projectTaskProcessFeignService.clearAssociation(providerId, ProcessUtils.SUPPLIER_APPROVAL_TYPE, false, SecurityConstants.INNER);
+        if (response == null || response.getCode() != 200) {
+            log.warn("清除供应商审批关联失败: {}, providerId: {}", response != null ? response.getMsg() : "response is null", providerId);
+        }
     }
 
     @Override

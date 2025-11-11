@@ -7,6 +7,7 @@ import org.flowable.spring.SpringProcessEngineConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ContextRefreshedEvent;
 
 
@@ -26,6 +27,7 @@ public class FlowableListenerConfig implements ApplicationListener<ContextRefres
     @Autowired
     private GlobalProcessStartedListener globalProcessStartedListener;
     @Autowired
+    @Lazy
     private GlobalProcessEndListener globalProcessEndListener;
 
     @Autowired

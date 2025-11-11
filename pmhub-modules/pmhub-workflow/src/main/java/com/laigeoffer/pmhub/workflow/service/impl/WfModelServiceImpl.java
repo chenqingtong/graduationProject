@@ -5,7 +5,10 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.conditions.update.LambdaUpdateChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.laigeoffer.pmhub.api.project.ProjectTaskProcessFeignService;
+import com.laigeoffer.pmhub.base.core.constant.SecurityConstants;
 import com.laigeoffer.pmhub.base.core.core.domain.PageQuery;
+import com.laigeoffer.pmhub.base.core.core.domain.R;
 import com.laigeoffer.pmhub.base.core.core.page.Table2DataInfo;
 import com.laigeoffer.pmhub.base.core.exception.ServiceException;
 import com.laigeoffer.pmhub.base.core.utils.JsonUtils;
@@ -16,7 +19,6 @@ import com.laigeoffer.pmhub.workflow.common.enums.FormType;
 import com.laigeoffer.pmhub.workflow.domain.WfApprovalSet;
 import com.laigeoffer.pmhub.workflow.domain.WfMaterialsScrappedProcess;
 import com.laigeoffer.pmhub.workflow.domain.WfModelDeploy;
-import com.laigeoffer.pmhub.base.core.core.domain.entity.WfTaskProcess;
 import com.laigeoffer.pmhub.workflow.domain.bo.WfModelBo;
 import com.laigeoffer.pmhub.workflow.domain.dto.WfMetaInfoDto;
 import com.laigeoffer.pmhub.workflow.domain.vo.WfFormVo;
@@ -26,7 +28,6 @@ import com.laigeoffer.pmhub.workflow.factory.FlowServiceFactory;
 import com.laigeoffer.pmhub.workflow.mapper.WfApprovalSetMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfMaterialsScrappedProcessMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfModelDeployMapper;
-import com.laigeoffer.pmhub.workflow.mapper.WfTaskProcessMapper;
 import com.laigeoffer.pmhub.workflow.service.IWfDeployFormService;
 import com.laigeoffer.pmhub.workflow.service.IWfFormService;
 import com.laigeoffer.pmhub.workflow.service.IWfModelService;
@@ -46,7 +47,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author canghe
@@ -60,9 +63,9 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
     private final IWfFormService formService;
     private final IWfDeployFormService deployFormService;
     private final WfModelDeployMapper wfModelDeployMapper;
-    private final WfTaskProcessMapper wfTaskProcessMapper;
     private final WfMaterialsScrappedProcessMapper wfMaterialsScrappedProcessMapper;
     private final WfApprovalSetMapper wfApprovalSetMapper;
+    private final ProjectTaskProcessFeignService projectTaskProcessFeignService;
 
     @Override
     public Table2DataInfo<WfModelVo> list(WfModelBo modelBo, PageQuery pageQuery) {
@@ -417,12 +420,14 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
         ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().processDefinitionKey(model.getKey())
                 .latestVersion().singleResult();
         // 更新审批设置
-        LambdaUpdateChainWrapper<WfTaskProcess> wfTaskProcess = new LambdaUpdateChainWrapper<>(wfTaskProcessMapper);
-        wfTaskProcess.likeRight(WfTaskProcess::getDefinitionId, model.getKey()).eq(WfTaskProcess::getApproved, 0)
-                .isNull(WfTaskProcess::getInstanceId)
-                .set(WfTaskProcess::getDefinitionId, processDefinition.getId())
-                .set(WfTaskProcess::getDeploymentId, processDefinition.getDeploymentId());
-        wfTaskProcess.update();
+        Map<String, String> params = new HashMap<>(3);
+        params.put("definitionIdPrefix", model.getKey());
+        params.put("newDefinitionId", processDefinition.getId());
+        params.put("newDeploymentId", processDefinition.getDeploymentId());
+        R<Void> updateResponse = projectTaskProcessFeignService.updateDefinitionByPrefix(params, SecurityConstants.INNER);
+        if (updateResponse == null || updateResponse.getCode() != 200) {
+            log.warn("更新任务流程定义信息失败: {}, definitionKey: {}", updateResponse != null ? updateResponse.getMsg() : "response is null", model.getKey());
+        }
         LambdaUpdateChainWrapper<WfApprovalSet> materialsApprovalSet = new LambdaUpdateChainWrapper<>(wfApprovalSetMapper);
         materialsApprovalSet.likeRight(WfApprovalSet::getDefinitionId, model.getKey())
                 .set(WfApprovalSet::getDefinitionId, processDefinition.getId())

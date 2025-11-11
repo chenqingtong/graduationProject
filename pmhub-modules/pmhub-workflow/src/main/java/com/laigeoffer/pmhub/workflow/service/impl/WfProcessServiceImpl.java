@@ -39,7 +39,6 @@ import com.laigeoffer.pmhub.base.core.constant.SecurityConstants;
 import com.laigeoffer.pmhub.base.core.core.domain.R;
 import com.laigeoffer.pmhub.workflow.mapper.WfDeployFormMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfMaterialsScrappedProcessMapper;
-import com.laigeoffer.pmhub.workflow.mapper.WfTaskProcessMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfApprovalTaskMapper;
 import com.laigeoffer.pmhub.workflow.domain.WfApprovalTask;
 import com.laigeoffer.pmhub.workflow.service.IWfDeployService;
@@ -90,7 +89,6 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
     private final IWfTaskService wfTaskService;
     private final WfCopyMapper wfCopyMapper;
     private final WfDeployFormMapper deployFormMapper;
-    private final WfTaskProcessMapper wfTaskProcessMapper;
     private final IWfDeployService deployService;
     private final WfMaterialsScrappedProcessMapper wfMaterialsScrappedProcessMapper;
     private final WfApprovalTaskMapper wfApprovalTaskMapper;
@@ -1505,6 +1503,15 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
             if (StringUtils.isNotBlank(assignee)) {
                 // 单个审批人
                 WfApprovalTask task = createApprovalTask(extraId, type, title, url, assignee, "user", assignee, initiatorId.toString(), initiatorName);
+                // 查询审批人姓名
+                try {
+                    SysUser user = wfCopyMapper.selectUserById(Long.parseLong(assignee));
+                    if (user != null) {
+                        task.setApproverName(user.getNickName());
+                    }
+                } catch (Exception e) {
+                    log.warn("查询审批人信息失败，approverId: {}", assignee, e);
+                }
                 approvalTasks.add(task);
                 firstTaskId = task.getId();
             } else if (StringUtils.isNotBlank(candidateUsers)) {
@@ -1562,10 +1569,13 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
                 }
                 // 查询这些部门下的所有用户
                 List<Long> userIds = wfCopyMapper.selectUserIds(deptIdList);
+                // 将处理后的部门ID列表用逗号连接，用于存储到approver_value（去掉DEPT前缀）
+                String processedDeptIds = String.join(",", deptIdList);
                 for (Long userId : userIds) {
                     SysUser user = wfCopyMapper.selectUserById(userId);
                     if (user != null) {
-                        WfApprovalTask task = createApprovalTask(extraId, type, title, url, userId.toString(), "dept", candidateGroups, initiatorId.toString(), initiatorName);
+                        // 使用处理后的部门ID列表（去掉DEPT前缀），这样查询时才能正确匹配
+                        WfApprovalTask task = createApprovalTask(extraId, type, title, url, userId.toString(), "dept", processedDeptIds, initiatorId.toString(), initiatorName);
                         task.setApproverName(user.getNickName());
                         approvalTasks.add(task);
                         if (firstTaskId == null) {
@@ -2188,7 +2198,10 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
             wfApprovalTaskMapper.cancelPendingTasks(task.getExtraId(), task.getType());
             // 更新业务对象状态（任务状态改为未开始）
             if (ProcessUtils.TASK_APPROVAL_TYPE.equals(task.getType())) {
-                wfTaskProcessMapper.updateTaskStatus2(task.getExtraId());
+                R<Void> resetResult = projectTaskProcessFeignService.resetTaskStatus(task.getExtraId(), SecurityConstants.INNER);
+                if (resetResult.getCode() != 200) {
+                    log.warn("重置项目任务状态失败: {}", resetResult.getMsg());
+                }
             }
             // 更新 pmhub_project_task_process 的 approved 字段为 "2"（已拒绝）
             updateWfTaskProcessApproved(task.getExtraId(), task.getType(), "2");
@@ -2199,7 +2212,10 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
             if (pendingCount == 0) {
                 // 所有审批人都已通过，更新业务对象状态（任务状态改为已完成）
                 if (ProcessUtils.TASK_APPROVAL_TYPE.equals(task.getType())) {
-                    wfTaskProcessMapper.updateTaskStatus(task.getExtraId());
+                    R<Void> updateResult = projectTaskProcessFeignService.updateTaskStatus(task.getExtraId(), SecurityConstants.INNER);
+                    if (updateResult.getCode() != 200) {
+                        log.warn("更新项目任务状态失败: {}", updateResult.getMsg());
+                    }
                 }
                 // 更新 pmhub_project_task_process 的 approved 字段为 "1"（已通过）
                 updateWfTaskProcessApproved(task.getExtraId(), task.getType(), "1");
@@ -2289,6 +2305,26 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
      */
     @Override
     public List<com.laigeoffer.pmhub.workflow.domain.WfApprovalTask> getApprovalTaskList(String extraId, String type) {
-        return wfApprovalTaskMapper.selectByExtraIdAndType(extraId, type);
+        List<WfApprovalTask> taskList = wfApprovalTaskMapper.selectByExtraIdAndType(extraId, type);
+        // 补充审批人姓名（处理旧数据或数据不完整的情况）
+        if (CollUtil.isNotEmpty(taskList)) {
+            for (WfApprovalTask task : taskList) {
+                // 如果审批人姓名为空，但审批人ID不为空，则查询用户信息补充
+                if (StringUtils.isBlank(task.getApproverName()) && StringUtils.isNotBlank(task.getApproverId())) {
+                    try {
+                        // 只有审批人类型为user时才查询用户信息
+                        if ("user".equals(task.getApproverType()) || StringUtils.isBlank(task.getApproverType())) {
+                            SysUser user = wfCopyMapper.selectUserById(Long.parseLong(task.getApproverId()));
+                            if (user != null) {
+                                task.setApproverName(user.getNickName());
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("查询审批人信息失败，approverId: {}", task.getApproverId(), e);
+                    }
+                }
+            }
+        }
+        return taskList;
     }
 }

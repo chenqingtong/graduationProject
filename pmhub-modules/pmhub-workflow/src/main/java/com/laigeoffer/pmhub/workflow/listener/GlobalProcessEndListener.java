@@ -3,6 +3,9 @@ package com.laigeoffer.pmhub.workflow.listener;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.log.LogFactory;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.laigeoffer.pmhub.api.project.ProjectTaskProcessFeignService;
+import com.laigeoffer.pmhub.base.core.constant.SecurityConstants;
+import com.laigeoffer.pmhub.base.core.core.domain.R;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.SysUser;
 import com.laigeoffer.pmhub.base.core.enums.ProjectStatusEnum;
 import com.laigeoffer.pmhub.base.core.utils.StringUtils;
@@ -46,6 +49,8 @@ public class GlobalProcessEndListener extends AbstractFlowableEngineEventListene
 
     @Autowired
     private WfMaterialsScrappedProcessMapper wfMaterialsScrappedProcessMapper;
+    @Autowired
+    private ProjectTaskProcessFeignService projectTaskProcessFeignService;
 //    @Autowired
 //    private MaterialsChangeRecordsCountService materialsChangeRecordsCountService;
 //    @Autowired
@@ -90,13 +95,15 @@ public class GlobalProcessEndListener extends AbstractFlowableEngineEventListene
         }
         // 审批通过更新任务状态为已完成
         if (TaskCompletedStateEnum.PASS.toString().equals(taskCompletedStateVO.getTaskTypeDesc())) {
-            LambdaQueryWrapper<WfTaskProcess> qw = new LambdaQueryWrapper<>();
-            qw.eq(WfTaskProcess::getInstanceId, instId).eq(WfTaskProcess::getType, type);
-            WfTaskProcess wfTaskProcess = wfTaskProcessMapper.selectOne(qw);
+            WfTaskProcess wfTaskProcess = getTaskProcess(instId, type);
             if (ObjectUtil.isNotEmpty(wfTaskProcess)) {
                 if (ProjectStatusEnum.TASK.getStatusName().equals(type)) {
-                    wfTaskProcessMapper.updateTaskStatus(wfTaskProcess.getExtraId());
-                    LogFactory.get().info("更新项目任务id:{}", wfTaskProcess.getExtraId());
+                    R<Void> updateResult = projectTaskProcessFeignService.updateTaskStatus(wfTaskProcess.getExtraId(), SecurityConstants.INNER);
+                    if (updateResult.getCode() != 200) {
+                        LogFactory.get().warn("更新项目任务状态失败: {}, taskId: {}", updateResult.getMsg(), wfTaskProcess.getExtraId());
+                    } else {
+                        LogFactory.get().info("更新项目任务id:{}", wfTaskProcess.getExtraId());
+                    }
                 } else if (ProcessUtils.SUPPLIER_APPROVAL_TYPE.equals(type)) {
                     wfTaskProcessMapper.updateProviderStatus(wfTaskProcess.getExtraId());
                     LogFactory.get().info("更新供应商id:{}", wfTaskProcess.getExtraId());
@@ -131,17 +138,19 @@ public class GlobalProcessEndListener extends AbstractFlowableEngineEventListene
 
         }
         if (TaskCompletedStateEnum.REJECT.toString().equals(taskCompletedStateVO.getTaskTypeDesc())) {
-            LambdaQueryWrapper<WfTaskProcess> qw = new LambdaQueryWrapper<>();
-            qw.eq(WfTaskProcess::getInstanceId, instId).eq(WfTaskProcess::getType, type);
-            WfTaskProcess wfTaskProcess = wfTaskProcessMapper.selectOne(qw);
+            WfTaskProcess wfTaskProcess = getTaskProcess(instId, type);
             if (ObjectUtil.isNotEmpty(wfTaskProcess)) {
                 if (!ProjectStatusEnum.TASK.getStatusName().equals(type) && !ProcessUtils.SUPPLIER_APPROVAL_TYPE.equals(type)) {
                     wfTaskProcessMapper.updateProcessState2(wfTaskProcess.getExtraId());
                     LogFactory.get().info("更新单据编号id:{}", wfTaskProcess.getExtraId());
                 } else {
                     // 将任务状态改为未开始
-                    wfTaskProcessMapper.updateTaskStatus2(wfTaskProcess.getExtraId());
-                    LogFactory.get().info("更新项目任务状态id:{}", wfTaskProcess.getExtraId());
+                    R<Void> resetResult = projectTaskProcessFeignService.resetTaskStatus(wfTaskProcess.getExtraId(), SecurityConstants.INNER);
+                    if (resetResult.getCode() != 200) {
+                        LogFactory.get().warn("重置项目任务状态失败: {}, taskId: {}", resetResult.getMsg(), wfTaskProcess.getExtraId());
+                    } else {
+                        LogFactory.get().info("更新项目任务状态id:{}", wfTaskProcess.getExtraId());
+                    }
                 }
             }
             LambdaQueryWrapper<WfMaterialsScrappedProcess> qw2 = new LambdaQueryWrapper<>();
@@ -194,6 +203,19 @@ public class GlobalProcessEndListener extends AbstractFlowableEngineEventListene
         wfTaskMessageDealMapper.delete(queryWrapper);
         LogFactory.get().info("流程完成监听器------------------------End---------------------->");
 
+    }
+
+    private WfTaskProcess getTaskProcess(String instanceId, String type) {
+        R<WfTaskProcess> response = projectTaskProcessFeignService.getByInstanceIdAndType(instanceId, type, SecurityConstants.INNER);
+        if (response == null) {
+            LogFactory.get().warn("查询任务流程失败: response is null, instanceId: {}, type: {}", instanceId, type);
+            return null;
+        }
+        if (response.getCode() != 200) {
+            LogFactory.get().warn("查询任务流程失败: {}, instanceId: {}, type: {}", response.getMsg(), instanceId, type);
+            return null;
+        }
+        return response.getData();
     }
 
 }
