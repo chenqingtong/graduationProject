@@ -301,8 +301,10 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         TaskQuery taskQuery = taskService.createTaskQuery()
             .active()
             .includeProcessVariables()
-            .taskCandidateOrAssigned(TaskUtils.getUserId())
-            .taskCandidateGroupIn(TaskUtils.getCandidateGroup())
+            .or()
+                .taskCandidateOrAssigned(TaskUtils.getUserId())
+                .taskCandidateGroupIn(TaskUtils.getCandidateGroup())
+            .endOr()
             .orderByTaskCreateTime().desc();
         // 构建搜索条件
         ProcessUtils.buildProcessSearch(taskQuery, processQuery);
@@ -448,8 +450,10 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         TaskQuery taskQuery = taskService.createTaskQuery()
                 .active()
                 .includeProcessVariables()
-                .taskCandidateOrAssigned(TaskUtils.getUserId())
-                .taskCandidateGroupIn(TaskUtils.getCandidateGroup())
+                .or()
+                    .taskCandidateOrAssigned(TaskUtils.getUserId())
+                    .taskCandidateGroupIn(TaskUtils.getCandidateGroup())
+                .endOr()
                 .orderByTaskCreateTime().desc();
         // 构建搜索条件
         ProcessUtils.buildProcessSearch(taskQuery, processQuery);
@@ -497,8 +501,10 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         TaskQuery taskQuery = taskService.createTaskQuery()
             .active()
             .includeProcessVariables()
-            .taskCandidateUser(TaskUtils.getUserId())
-            .taskCandidateGroupIn(TaskUtils.getCandidateGroup())
+            .or()
+                .taskCandidateUser(TaskUtils.getUserId())
+                .taskCandidateGroupIn(TaskUtils.getCandidateGroup())
+            .endOr()
             .orderByTaskCreateTime().desc();
         // 构建搜索条件
         ProcessUtils.buildProcessSearch(taskQuery, processQuery);
@@ -546,8 +552,10 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         TaskQuery taskQuery = taskService.createTaskQuery()
                 .active()
                 .includeProcessVariables()
-                .taskCandidateUser(TaskUtils.getUserId())
-                .taskCandidateGroupIn(TaskUtils.getCandidateGroup())
+                .or()
+                    .taskCandidateUser(TaskUtils.getUserId())
+                    .taskCandidateGroupIn(TaskUtils.getCandidateGroup())
+                .endOr()
                 .orderByTaskCreateTime().desc();
         // 构建搜索条件
         ProcessUtils.buildProcessSearch(taskQuery, processQuery);
@@ -1538,13 +1546,19 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
                 String[] roleIds = candidateGroups.split(",");
                 for (String roleId : roleIds) {
                     if (StringUtils.isNotBlank(roleId)) {
-                        roleId = roleId.trim().startsWith("ROLE") ? roleId.trim().substring(4) : roleId.trim();
+                        String rawRoleId = roleId.trim();
+                        String roleIdForDb = rawRoleId.startsWith(TaskConstants.ROLE_GROUP_PREFIX)
+                                ? StringUtils.removeStart(rawRoleId, TaskConstants.ROLE_GROUP_PREFIX)
+                                : rawRoleId;
+                        if (StringUtils.isBlank(roleIdForDb)) {
+                            continue;
+                        }
                         // 查询该角色下的所有用户
-                        List<Long> userIds = wfCopyMapper.selectUserIdsByRoleId(Long.parseLong(roleId));
+                        List<Long> userIds = wfCopyMapper.selectUserIdsByRoleId(Long.parseLong(roleIdForDb));
                         for (Long userId : userIds) {
                             SysUser user = wfCopyMapper.selectUserById(userId);
                             if (user != null) {
-                                WfApprovalTask task = createApprovalTask(extraId, type, title, url, userId.toString(), "role", candidateGroups, initiatorId.toString(), initiatorName);
+                                WfApprovalTask task = createApprovalTask(extraId, type, title, url, userId.toString(), "role", roleIdForDb, initiatorId.toString(), initiatorName);
                                 task.setApproverName(user.getNickName());
                                 approvalTasks.add(task);
                                 if (firstTaskId == null) {
