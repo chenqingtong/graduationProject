@@ -9,6 +9,7 @@ import com.laigeoffer.pmhub.project.domain.ProjectTask;
 import com.laigeoffer.pmhub.project.service.ProjectTaskProcessService;
 import com.laigeoffer.pmhub.project.service.ProjectTaskService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/project/taskProcess")
+@Slf4j
 public class ProjectTaskProcessController {
 
     private final ProjectTaskProcessService projectTaskProcessService;
@@ -122,8 +124,18 @@ public class ProjectTaskProcessController {
     @InnerAuth
     @GetMapping("/getTaskNameById")
     public R<String> getTaskNameById(@RequestParam("taskId") String taskId) {
+        if (log.isInfoEnabled()) {
+            log.info("内部调用获取任务名称, taskId={}", taskId);
+        }
         ProjectTask task = projectTaskService.getById(taskId);
-        return task != null ? R.ok(task.getTaskName()) : R.fail("任务不存在");
+        if (task == null) {
+            log.warn("根据任务ID未查询到任务, taskId={}", taskId);
+            return R.fail("任务不存在");
+        }
+        if (log.isInfoEnabled()) {
+            log.info("查询任务名称成功, taskId={}, taskName={}", taskId, task.getTaskName());
+        }
+        return R.ok("查询任务名称成功", task.getTaskName());
     }
 
     /**

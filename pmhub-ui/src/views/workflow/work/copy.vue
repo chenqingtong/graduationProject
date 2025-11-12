@@ -1,10 +1,10 @@
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px">
-      <el-form-item label="流程名称" prop="processName">
+      <el-form-item label="任务名称" prop="processName">
         <el-input
           v-model="queryParams.processName"
-          placeholder="请输入流程名称"
+          placeholder="请输入任务名称"
           clearable
           @keyup.enter.native="handleQuery"
         />
@@ -41,8 +41,26 @@
       <el-table-column type="selection" width="55" align="center" />
       <el-table-column label="抄送编号" align="center" prop="copyId" />
       <el-table-column label="标题" align="center" prop="title" :show-overflow-tooltip="true" />
-      <el-table-column label="流程名称" align="center" prop="processName" :show-overflow-tooltip="true" />
+      <el-table-column label="任务名称" align="center" prop="processName" :show-overflow-tooltip="true" />
       <el-table-column label="发起人" align="center" prop="originatorName" />
+      <el-table-column label="任务状态" align="center">
+        <template slot-scope="scope">
+          <el-tag
+            v-if="scope.row.status"
+            :type="statusTagType(scope.row.status)"
+            disable-transitions
+            size="small"
+          >
+            {{ formatStatus(scope.row.status) }}
+          </el-tag>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="审批意见" align="center" prop="approvalComment" :show-overflow-tooltip="true">
+        <template slot-scope="scope">
+          <span>{{ scope.row.approvalComment || "-" }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="创建时间" align="center" prop="createTime">
         <template slot-scope="scope">
           <span>{{ parseTime(scope.row.createTime) }}</span>
@@ -94,6 +112,13 @@ export default {
       total: 0,
       // 流程抄送表格数据
       copyList: [],
+      // 审批状态字典
+      statusDict: {
+        pending: { label: "待审批", type: "warning" },
+        approved: { label: "已通过", type: "success" },
+        rejected: { label: "已拒绝", type: "danger" },
+        cancelled: { label: "已取消", type: "info" },
+      },
       // 弹出层标题
       title: "",
       // 是否显示弹出层
@@ -120,7 +145,7 @@ export default {
           { required: true, message: "流程主键不能为空", trigger: "blur" }
         ],
         processName: [
-          { required: true, message: "流程名称不能为空", trigger: "blur" }
+          { required: true, message: "任务名称不能为空", trigger: "blur" }
         ],
         categoryId: [
           { required: true, message: "流程分类主键不能为空", trigger: "blur" }
@@ -186,8 +211,33 @@ export default {
       this.single = selection.length!==1
       this.multiple = !selection.length
     },
+    /** 审批状态文案 */
+    formatStatus(status) {
+      return this.statusDict[status] ? this.statusDict[status].label : "-"
+    },
+    /** 审批状态标签类型 */
+    statusTagType(status) {
+      return this.statusDict[status] ? this.statusDict[status].type : "info"
+    },
     /** 查看详情 */
     handleFlowRecord(row){
+      if (row.extraId) {
+        this.$router.push({
+          path: "/pmhub-project/my-task/info",
+          query: {
+            taskId: row.extraId
+          }
+        })
+        return
+      }
+      if (row.detailUrl) {
+        if (row.detailUrl.startsWith("http")) {
+          window.open(row.detailUrl, "_blank")
+        } else {
+          this.$router.push(row.detailUrl)
+        }
+        return
+      }
       this.$router.push({
         path: '/workflow/process/detail/' + row.instanceId,
         query: {

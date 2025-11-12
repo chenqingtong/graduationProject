@@ -92,4 +92,29 @@ public class WfCopyVo {
     @ExcelProperty(value = "抄送时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date createTime;
+
+    /**
+     * 任务名称
+     */
+    private String taskName;
+
+    /**
+     * 简化审批任务ID关联的业务ID（例如项目任务ID）
+     */
+    private String extraId;
+
+    /**
+     * 审批状态：pending、approved、rejected、cancelled
+     */
+    private String status;
+
+    /**
+     * 审批意见
+     */
+    private String approvalComment;
+
+    /**
+     * 审批详情页地址
+     */
+    private String detailUrl;
 }

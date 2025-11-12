@@ -2317,6 +2317,10 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         String[] userIds = copyUserIds.split(",");
         List<WfCopy> copyList = new ArrayList<>(userIds.length);
         
+        // 获取当前用户和时间信息
+        String currentUsername = SecurityUtils.getUsername();
+        Date currentTime = new Date();
+        
         for (String userIdStr : userIds) {
             if (StringUtils.isBlank(userIdStr)) {
                 continue;
@@ -2337,6 +2341,11 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
                 copy.setUserId(userId);
                 copy.setOriginatorId(originatorId);
                 copy.setOriginatorName(originatorName);
+                // 设置创建时间和更新时间
+                copy.setCreateTime(currentTime);
+                copy.setUpdateTime(currentTime);
+                copy.setCreateBy(currentUsername);
+                copy.setUpdateBy(currentUsername);
                 copyList.add(copy);
             } catch (NumberFormatException e) {
                 log.warn("无效的抄送人ID: {}", userIdStr);

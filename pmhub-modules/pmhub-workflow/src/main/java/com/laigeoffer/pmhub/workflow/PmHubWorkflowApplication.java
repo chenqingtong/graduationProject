@@ -4,6 +4,7 @@ import com.laigeoffer.pmhub.base.security.annotation.EnableCustomConfig;
 import com.laigeoffer.pmhub.base.security.annotation.EnableDistributedLock;
 import com.laigeoffer.pmhub.base.security.annotation.EnablePmFeignClients;
 import com.laigeoffer.pmhub.base.swagger.annotation.EnableCustomSwagger2;
+import com.laigeoffer.pmhub.workflow.config.ProjectTaskProcessFeignConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -13,7 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @create 2024-04-25-17:45
  */
 @EnableCustomConfig
-@EnablePmFeignClients
+@EnablePmFeignClients(defaultConfiguration = ProjectTaskProcessFeignConfig.class)
 @EnableCustomSwagger2
 @EnableDistributedLock // 启用Redisson分布式锁
 @SpringBootApplication
