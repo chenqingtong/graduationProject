@@ -712,9 +712,36 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         // 查询简化审批任务的已办列表
         List<WfApprovalTask> finishedApprovalTasks = wfApprovalTaskMapper.selectFinishedListByUserId(userIdStr, roleIds, deptIds);
         
+        // 批量查询任务名称（根据 extra_id）
+        Map<String, String> taskNameMap = new HashMap<>();
+        if (CollUtil.isNotEmpty(finishedApprovalTasks)) {
+            for (WfApprovalTask approvalTask : finishedApprovalTasks) {
+                String extraId = approvalTask.getExtraId();
+                if (StringUtils.isNotBlank(extraId) && !taskNameMap.containsKey(extraId)) {
+                    try {
+                        R<String> response = projectTaskProcessFeignService.getTaskNameById(extraId, SecurityConstants.INNER);
+                        if (response != null && response.getCode() == 200) {
+                            String taskName = response.getData();
+                            if (StringUtils.isBlank(taskName)) {
+                                // 如果 data 为空，尝试从 msg 中获取（兼容旧版本）
+                                taskName = response.getMsg();
+                            }
+                            taskNameMap.put(extraId, StringUtils.isNotBlank(taskName) ? taskName : "");
+                        } else {
+                            log.warn("查询任务名称失败，extraId={}，响应={}", extraId, response);
+                            taskNameMap.put(extraId, "");
+                        }
+                    } catch (Exception e) {
+                        log.error("查询任务名称异常，extraId={}", extraId, e);
+                        taskNameMap.put(extraId, "");
+                    }
+                }
+            }
+        }
+        
         // 将简化审批任务转换为 WfTaskVo
         for (WfApprovalTask approvalTask : finishedApprovalTasks) {
-            WfTaskVo flowTask = convertApprovalTaskToWfTaskVo(approvalTask);
+            WfTaskVo flowTask = convertApprovalTaskToWfTaskVo(approvalTask, taskNameMap);
             allFinishedTasks.add(flowTask);
         }
         
@@ -749,9 +776,10 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
      * 将简化审批任务转换为 WfTaskVo
      * 
      * @param approvalTask 简化审批任务
+     * @param taskNameMap 任务名称映射表（extraId -> taskName）
      * @return WfTaskVo
      */
-    private WfTaskVo convertApprovalTaskToWfTaskVo(WfApprovalTask approvalTask) {
+    private WfTaskVo convertApprovalTaskToWfTaskVo(WfApprovalTask approvalTask, Map<String, String> taskNameMap) {
         WfTaskVo flowTask = new WfTaskVo();
         // 使用审批任务ID作为任务ID
         flowTask.setTaskId(approvalTask.getId());
@@ -765,8 +793,14 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
             flowTask.setDuration(DateUtil.formatBetween(duration, BetweenFormatter.Level.SECOND));
         }
         
-        // 简化审批任务没有流程定义，设置默认值
-        flowTask.setProcDefName("简化审批流程");
+        // 根据 extra_id 查询任务名称，如果查询到则使用任务名称，否则使用默认值
+        String extraId = approvalTask.getExtraId();
+        String taskName = null;
+        if (StringUtils.isNotBlank(extraId) && taskNameMap != null) {
+            taskName = taskNameMap.get(extraId);
+        }
+        // 如果查询到任务名称，使用任务名称；否则使用默认值"简化审批流程"
+        flowTask.setProcDefName(StringUtils.isNotBlank(taskName) ? taskName : "简化审批流程");
         flowTask.setProcDefVersion(1);
         // 使用 extraId 作为流程实例ID（用于标识业务对象）
         flowTask.setProcInsId(approvalTask.getExtraId());
@@ -888,9 +922,36 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         // 查询简化审批任务的已办列表
         List<WfApprovalTask> finishedApprovalTasks = wfApprovalTaskMapper.selectFinishedListByUserId(userIdStr, roleIds, deptIds);
         
+        // 批量查询任务名称（根据 extra_id）
+        Map<String, String> taskNameMap = new HashMap<>();
+        if (CollUtil.isNotEmpty(finishedApprovalTasks)) {
+            for (WfApprovalTask approvalTask : finishedApprovalTasks) {
+                String extraId = approvalTask.getExtraId();
+                if (StringUtils.isNotBlank(extraId) && !taskNameMap.containsKey(extraId)) {
+                    try {
+                        R<String> response = projectTaskProcessFeignService.getTaskNameById(extraId, SecurityConstants.INNER);
+                        if (response != null && response.getCode() == 200) {
+                            String taskName = response.getData();
+                            if (StringUtils.isBlank(taskName)) {
+                                // 如果 data 为空，尝试从 msg 中获取（兼容旧版本）
+                                taskName = response.getMsg();
+                            }
+                            taskNameMap.put(extraId, StringUtils.isNotBlank(taskName) ? taskName : "");
+                        } else {
+                            log.warn("查询任务名称失败，extraId={}，响应={}", extraId, response);
+                            taskNameMap.put(extraId, "");
+                        }
+                    } catch (Exception e) {
+                        log.error("查询任务名称异常，extraId={}", extraId, e);
+                        taskNameMap.put(extraId, "");
+                    }
+                }
+            }
+        }
+        
         // 将简化审批任务转换为 WfTaskVo
         for (WfApprovalTask approvalTask : finishedApprovalTasks) {
-            WfTaskVo flowTask = convertApprovalTaskToWfTaskVo(approvalTask);
+            WfTaskVo flowTask = convertApprovalTaskToWfTaskVo(approvalTask, taskNameMap);
             allFinishedTasks.add(flowTask);
         }
         
@@ -1396,10 +1457,44 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
      */
     @Override
     public WfDetailVo queryProcessDetail(String procInsId, String deployId, String taskId) {
+        WfDetailVo detailVo = new WfDetailVo();
+        
+        // 判断是否是简化审批流程：如果 taskId 在审批任务表中存在，就是简化审批流程
+        WfApprovalTask approvalTask = null;
+        if (StringUtils.isNotBlank(taskId)) {
+            approvalTask = wfApprovalTaskMapper.selectById(taskId);
+        }
+        
+        if (approvalTask != null) {
+            // 简化审批流程
+            String extraId = approvalTask.getExtraId();
+            String type = approvalTask.getType();
+            
+            // 生成简化审批流程的 BPMN XML
+            String bpmnXml = generateSimplifiedApprovalBpmnXml(type);
+            BpmnModel bpmnModel = ModelUtils.getBpmnModel(bpmnXml);
+            detailVo.setBpmnXml(bpmnXml);
+            
+            // 简化审批流程没有任务表单
+            detailVo.setTaskFormData(null);
+            
+            // 构建流转记录
+            detailVo.setHistoryProcNodeList(historyProcNodeListForSimplifiedApproval(extraId, type));
+            
+            // 简化审批流程没有流程表单列表
+            detailVo.setProcessFormList(new ArrayList<>());
+            
+            // 构建流程图查看器数据
+            detailVo.setFlowViewer(getFlowViewerForSimplifiedApproval(bpmnModel, extraId, type));
+            
+            return detailVo;
+        }
+        
+        // 标准 Flowable 流程
         if (StringUtils.isBlank(procInsId)) {
             throw new ServiceException("未发布审批，不存在审批进度");
         }
-        WfDetailVo detailVo = new WfDetailVo();
+        
         HistoricTaskInstance taskIns = historyService.createHistoricTaskInstanceQuery()
             .taskId(taskId)
             .includeIdentityLinks()
@@ -2231,6 +2326,279 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
             .collect(Collectors.toSet());
         // DFS 查询未通过的元素集合
         Set<String> rejectedSet = FlowableUtils.dfsFindRejects(bpmnModel, unfinishedTaskSet, finishedSequenceFlowSet, finishedTaskSet);
+        return new WfViewerVo(finishedTaskSet, finishedSequenceFlowSet, unfinishedTaskSet, rejectedSet);
+    }
+
+    /**
+     * 生成简化审批流程的 BPMN XML
+     * 
+     * @param type 审批类型
+     * @return BPMN XML 字符串
+     */
+    private String generateSimplifiedApprovalBpmnXml(String type) {
+        String processId = "simplified-approval-" + type;
+        String processName = "简化审批流程";
+        
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                "<bpmn2:definitions xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" " +
+                "xmlns:bpmn2=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" " +
+                "xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" " +
+                "xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" " +
+                "xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\" " +
+                "id=\"diagram_" + processId + "\" " +
+                "targetNamespace=\"http://bpmn.io/schema/bpmn\" " +
+                "xsi:schemaLocation=\"http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd\">\n" +
+                "  <bpmn2:process id=\"" + processId + "\" name=\"" + processName + "\" isExecutable=\"true\">\n" +
+                "    <bpmn2:startEvent id=\"startEvent\" name=\"发起流程\" />\n" +
+                "    <bpmn2:userTask id=\"userTask\" name=\"审批任务\" />\n" +
+                "    <bpmn2:endEvent id=\"endEvent\" name=\"结束流程\" />\n" +
+                "    <bpmn2:sequenceFlow id=\"flow1\" sourceRef=\"startEvent\" targetRef=\"userTask\" />\n" +
+                "    <bpmn2:sequenceFlow id=\"flow2\" sourceRef=\"userTask\" targetRef=\"endEvent\" />\n" +
+                "  </bpmn2:process>\n" +
+                "  <bpmndi:BPMNDiagram id=\"BPMNDiagram_1\">\n" +
+                "    <bpmndi:BPMNPlane id=\"BPMNPlane_1\" bpmnElement=\"" + processId + "\">\n" +
+                "      <bpmndi:BPMNShape id=\"startEvent_di\" bpmnElement=\"startEvent\">\n" +
+                "        <dc:Bounds x=\"152\" y=\"102\" width=\"36\" height=\"36\" />\n" +
+                "      </bpmndi:BPMNShape>\n" +
+                "      <bpmndi:BPMNShape id=\"userTask_di\" bpmnElement=\"userTask\">\n" +
+                "        <dc:Bounds x=\"240\" y=\"80\" width=\"100\" height=\"80\" />\n" +
+                "      </bpmndi:BPMNShape>\n" +
+                "      <bpmndi:BPMNShape id=\"endEvent_di\" bpmnElement=\"endEvent\">\n" +
+                "        <dc:Bounds x=\"392\" y=\"102\" width=\"36\" height=\"36\" />\n" +
+                "      </bpmndi:BPMNShape>\n" +
+                "      <bpmndi:BPMNEdge id=\"flow1_di\" bpmnElement=\"flow1\">\n" +
+                "        <di:waypoint x=\"188\" y=\"120\" />\n" +
+                "        <di:waypoint x=\"240\" y=\"120\" />\n" +
+                "      </bpmndi:BPMNEdge>\n" +
+                "      <bpmndi:BPMNEdge id=\"flow2_di\" bpmnElement=\"flow2\">\n" +
+                "        <di:waypoint x=\"340\" y=\"120\" />\n" +
+                "        <di:waypoint x=\"392\" y=\"120\" />\n" +
+                "      </bpmndi:BPMNEdge>\n" +
+                "    </bpmndi:BPMNPlane>\n" +
+                "  </bpmndi:BPMNDiagram>\n" +
+                "</bpmn2:definitions>";
+    }
+
+    /**
+     * 从审批任务表构建简化审批流程的流转记录
+     * 
+     * @param extraId 业务ID
+     * @param type 审批类型
+     * @return 流转记录列表
+     */
+    private List<WfProcNodeVo> historyProcNodeListForSimplifiedApproval(String extraId, String type) {
+        List<WfApprovalTask> approvalTaskList = wfApprovalTaskMapper.selectByExtraIdAndType(extraId, type);
+        if (CollUtil.isEmpty(approvalTaskList)) {
+            return new ArrayList<>();
+        }
+        
+        // 按创建时间排序
+        approvalTaskList.sort((a, b) -> {
+            if (a.getCreatedTime() == null && b.getCreatedTime() == null) {
+                return 0;
+            }
+            if (a.getCreatedTime() == null) {
+                return 1;
+            }
+            if (b.getCreatedTime() == null) {
+                return -1;
+            }
+            return a.getCreatedTime().compareTo(b.getCreatedTime());
+        });
+        
+        List<WfProcNodeVo> elementVoList = new ArrayList<>();
+        
+        // 1. 发起流程节点（startEvent）
+        WfApprovalTask firstTask = approvalTaskList.get(0);
+        WfProcNodeVo startNode = new WfProcNodeVo();
+        startNode.setProcDefId("simplified-approval-" + type);
+        startNode.setActivityId("startEvent");
+        startNode.setActivityName("发起流程");
+        startNode.setActivityType(BpmnXMLConstants.ELEMENT_EVENT_START);
+        startNode.setCreateTime(firstTask.getCreatedTime());
+        startNode.setEndTime(firstTask.getCreatedTime());
+        
+        // 设置发起人信息
+        if (StringUtils.isNotBlank(firstTask.getInitiatorId())) {
+            try {
+                SysUser user = wfCopyMapper.selectUserById(Long.parseLong(firstTask.getInitiatorId()));
+                if (user != null) {
+                    startNode.setAssigneeId(user.getUserId());
+                    startNode.setAssigneeName(user.getNickName());
+                } else {
+                    startNode.setAssigneeName(firstTask.getInitiatorName());
+                }
+            } catch (NumberFormatException e) {
+                startNode.setAssigneeName(firstTask.getInitiatorName());
+            }
+        }
+        elementVoList.add(startNode);
+        
+        // 2. 审批任务节点（userTask）- 每个审批任务一个节点
+        for (WfApprovalTask task : approvalTaskList) {
+            WfProcNodeVo taskNode = new WfProcNodeVo();
+            taskNode.setProcDefId("simplified-approval-" + type);
+            taskNode.setActivityId("userTask_" + task.getId());
+            taskNode.setActivityName("审批任务");
+            taskNode.setActivityType(BpmnXMLConstants.ELEMENT_TASK_USER);
+            taskNode.setCreateTime(task.getCreatedTime());
+            taskNode.setEndTime(task.getApprovalTime());
+            
+            // 计算耗时
+            if (task.getCreatedTime() != null && task.getApprovalTime() != null) {
+                long duration = task.getApprovalTime().getTime() - task.getCreatedTime().getTime();
+                taskNode.setDuration(DateUtil.formatBetween(duration, BetweenFormatter.Level.SECOND));
+            }
+            
+            // 设置审批人信息
+            if (StringUtils.isNotBlank(task.getApproverId())) {
+                try {
+                    if ("user".equals(task.getApproverType()) || StringUtils.isBlank(task.getApproverType())) {
+                        SysUser user = wfCopyMapper.selectUserById(Long.parseLong(task.getApproverId()));
+                        if (user != null) {
+                            taskNode.setAssigneeId(user.getUserId());
+                            taskNode.setAssigneeName(user.getNickName());
+                        } else {
+                            taskNode.setAssigneeName(task.getApproverName());
+                        }
+                    } else {
+                        taskNode.setAssigneeName(task.getApproverName());
+                    }
+                } catch (NumberFormatException e) {
+                    taskNode.setAssigneeName(task.getApproverName());
+                }
+            }
+            
+            // 设置候选审批人（如果有多个审批人）
+            if (StringUtils.isNotBlank(task.getApproverValue())) {
+                StringBuilder candidateBuilder = new StringBuilder();
+                String[] approverValues = task.getApproverValue().split(",");
+                for (String approverValue : approverValues) {
+                    if (StringUtils.isBlank(approverValue)) {
+                        continue;
+                    }
+                    try {
+                        if ("user".equals(task.getApproverType()) || StringUtils.isBlank(task.getApproverType())) {
+                            SysUser user = wfCopyMapper.selectUserById(Long.parseLong(approverValue.trim()));
+                            if (user != null) {
+                                candidateBuilder.append(user.getNickName()).append(",");
+                            }
+                        } else if ("role".equals(task.getApproverType())) {
+                            SysRole role = wfCopyMapper.selectRoleById(Long.parseLong(approverValue.trim()));
+                            if (role != null) {
+                                candidateBuilder.append(role.getRoleName()).append(",");
+                            }
+                        } else if ("dept".equals(task.getApproverType())) {
+                            SysDept dept = wfCopyMapper.selectDeptById(Long.parseLong(approverValue.trim()));
+                            if (dept != null) {
+                                candidateBuilder.append(dept.getDeptName()).append(",");
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("解析审批人信息失败: {}", approverValue, e);
+                    }
+                }
+                if (candidateBuilder.length() > 0) {
+                    taskNode.setCandidate(candidateBuilder.substring(0, candidateBuilder.length() - 1));
+                }
+            }
+            
+            // 设置审批意见
+            if (StringUtils.isNotBlank(task.getApprovalComment())) {
+                List<CommentVO> comments = new ArrayList<>();
+                CommentVO commentVO = new CommentVO();
+                commentVO.setId(task.getId());
+                commentVO.setTaskId(task.getId());
+                commentVO.setProcessInstanceId(extraId);
+                commentVO.setType("comment");
+                commentVO.setFullMessage(task.getApprovalComment());
+                commentVO.setTime(task.getApprovalTime() != null ? task.getApprovalTime() : task.getCreatedTime());
+                if (StringUtils.isNotBlank(task.getApproverId())) {
+                    commentVO.setUserId(task.getApproverId());
+                }
+                comments.add(commentVO);
+                taskNode.setCommentList(comments);
+            }
+            
+            elementVoList.add(taskNode);
+        }
+        
+        // 3. 结束流程节点（endEvent）
+        WfApprovalTask lastTask = approvalTaskList.get(approvalTaskList.size() - 1);
+        WfProcNodeVo endNode = new WfProcNodeVo();
+        endNode.setProcDefId("simplified-approval-" + type);
+        endNode.setActivityId("endEvent");
+        endNode.setActivityName("结束流程");
+        endNode.setActivityType(BpmnXMLConstants.ELEMENT_EVENT_END);
+        
+        // 判断流程是否已结束（所有审批任务都已处理）
+        boolean allFinished = approvalTaskList.stream()
+            .allMatch(task -> !"pending".equals(task.getStatus()));
+        
+        if (allFinished) {
+            // 找到最后一个审批时间作为结束时间
+            Date endTime = approvalTaskList.stream()
+                .filter(task -> task.getApprovalTime() != null)
+                .map(WfApprovalTask::getApprovalTime)
+                .max(Date::compareTo)
+                .orElse(lastTask.getCreatedTime());
+            endNode.setCreateTime(endTime);
+            endNode.setEndTime(endTime);
+        } else {
+            endNode.setCreateTime(null);
+            endNode.setEndTime(null);
+        }
+        
+        elementVoList.add(endNode);
+        
+        return elementVoList;
+    }
+
+    /**
+     * 构建简化审批流程的流程图查看器数据
+     * 
+     * @param bpmnModel BPMN 模型
+     * @param extraId 业务ID
+     * @param type 审批类型
+     * @return 流程图查看器数据
+     */
+    private WfViewerVo getFlowViewerForSimplifiedApproval(BpmnModel bpmnModel, String extraId, String type) {
+        List<WfApprovalTask> approvalTaskList = wfApprovalTaskMapper.selectByExtraIdAndType(extraId, type);
+        if (CollUtil.isEmpty(approvalTaskList)) {
+            return new WfViewerVo();
+        }
+        
+        Set<String> finishedTaskSet = new HashSet<>();
+        Set<String> finishedSequenceFlowSet = new HashSet<>();
+        Set<String> unfinishedTaskSet = new HashSet<>();
+        Set<String> rejectedSet = new HashSet<>();
+        
+        // 判断流程状态
+        boolean allFinished = approvalTaskList.stream()
+            .allMatch(task -> !"pending".equals(task.getStatus()));
+        boolean hasRejected = approvalTaskList.stream()
+            .anyMatch(task -> "rejected".equals(task.getStatus()));
+        
+        // 发起流程节点（startEvent）已完成
+        finishedTaskSet.add("startEvent");
+        finishedSequenceFlowSet.add("flow1");
+        
+        // 审批任务节点
+        if (allFinished) {
+            // 所有审批任务都已完成
+            finishedTaskSet.add("userTask");
+            finishedSequenceFlowSet.add("flow2");
+            finishedTaskSet.add("endEvent");
+            
+            if (hasRejected) {
+                // 如果有拒绝的，标记为拒绝状态
+                rejectedSet.add("userTask");
+            }
+        } else {
+            // 还有待审批任务
+            unfinishedTaskSet.add("userTask");
+        }
+        
         return new WfViewerVo(finishedTaskSet, finishedSequenceFlowSet, unfinishedTaskSet, rejectedSet);
     }
 

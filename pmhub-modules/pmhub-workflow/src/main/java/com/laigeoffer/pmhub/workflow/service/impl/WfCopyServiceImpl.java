@@ -50,6 +50,7 @@ public class WfCopyServiceImpl implements IWfCopyService {
 
     private final WfApprovalTaskMapper wfApprovalTaskMapper;
 
+    // Feign 客户端在运行时由 Spring Cloud OpenFeign 动态生成，IDE 无法识别，但运行时可以正常注入
     private final ProjectTaskProcessFeignService projectTaskProcessFeignService;
 
     /**
