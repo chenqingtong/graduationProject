@@ -110,6 +110,17 @@ public interface ProjectTaskProcessFeignService {
                              @RequestHeader(SecurityConstants.FROM_SOURCE) String source);
 
     /**
+     * 根据任务ID查询任务名称
+     *
+     * @param taskId 任务ID
+     * @param source 请求来源
+     * @return 任务名称
+     */
+    @GetMapping("/project/taskProcess/getTaskNameById")
+    R<String> getTaskNameById(@RequestParam("taskId") String taskId,
+                              @RequestHeader(SecurityConstants.FROM_SOURCE) String source);
+
+    /**
      * 根据流程实例ID查询任务流程
      */
     @GetMapping("/project/taskProcess/getByInstanceId")

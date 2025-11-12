@@ -1,10 +1,10 @@
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryForm" :inline="true" v-show="showSearch" label-width="68px">
-      <el-form-item label="流程名称" prop="processName">
+      <el-form-item label="任务名称" prop="processName">
         <el-input
           v-model="queryParams.processName"
-          placeholder="请输入流程名称"
+          placeholder="请输入任务名称"
           clearable
           size="small"
           @keyup.enter.native="handleQuery"
@@ -55,13 +55,8 @@
     <el-table v-loading="loading" :data="todoList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center"/>
       <el-table-column label="任务编号" align="center" prop="taskId" :show-overflow-tooltip="true"/>
-      <el-table-column label="流程名称" align="center" prop="procDefName"/>
+      <el-table-column label="任务名称" align="center" prop="procDefName" :show-overflow-tooltip="true"/>
       <el-table-column label="任务节点" align="center" prop="taskName"/>
-      <el-table-column label="流程版本" align="center">
-        <template slot-scope="scope">
-          <el-tag size="medium" >v{{scope.row.procDefVersion}}</el-tag>
-        </template>
-      </el-table-column>
       <el-table-column label="流程发起人" align="center">
         <template slot-scope="scope">
           <label>{{scope.row.startUserName}} <el-tag type="info" size="mini">{{scope.row.startDeptName}}</el-tag></label>
@@ -379,9 +374,9 @@ export default {
           this.batSuccess = true;
         }
         catch(error){
-          this.errorInput = "当前任务无法被处理："
+        this.errorInput = "当前任务无法被处理："
                           +"<br>任务编号："+thisItem.taskId
-                          +"<br>流程名称："+thisItem.procDefName
+                          +"<br>任务名称："+(thisItem.procDefName || thisItem.taskName || '')
                           +"<br>错误信息："+error.message;
           this.batError = true;
         }
@@ -426,9 +421,9 @@ export default {
         this.batSuccess = true; 
         }
       catch(error){
-        this.errorInput = "当前任务无法被处理："
-                        +"<br>任务编号："+thisItem.taskId
-                        +"<br>流程名称："+thisItem.procDefName
+            this.errorInput = "当前任务无法被处理："
+                            +"<br>任务编号："+thisItem.taskId
+                            +"<br>任务名称："+(thisItem.procDefName || thisItem.taskName || '')
                         +"<br>错误信息："+error.message;
         this.batError = true;
       }

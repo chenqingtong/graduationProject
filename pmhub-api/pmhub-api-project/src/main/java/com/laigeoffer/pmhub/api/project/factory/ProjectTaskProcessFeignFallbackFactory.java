@@ -65,6 +65,11 @@ public class ProjectTaskProcessFeignFallbackFactory implements FallbackFactory<P
             }
 
             @Override
+            public R<String> getTaskNameById(String taskId, String source) {
+                return R.fail("查询任务名称失败:" + throwable.getMessage());
+            }
+
+            @Override
             public R<WfTaskProcess> getByInstanceId(String instanceId, String source) {
                 return R.fail("根据实例ID查询任务流程失败:" + throwable.getMessage());
             }

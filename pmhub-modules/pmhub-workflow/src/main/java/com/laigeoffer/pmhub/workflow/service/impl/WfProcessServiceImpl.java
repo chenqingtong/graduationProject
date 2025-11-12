@@ -378,10 +378,43 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
             WfTaskVo flowTask = new WfTaskVo();
             // 使用审批任务ID作为任务ID
             flowTask.setTaskId(approvalTask.getId());
-            flowTask.setTaskName(approvalTask.getTitle());
+            String nodeDisplayName = approvalTask.getTitle();
+            String taskDisplayName = null;
+            if (ProjectStatusEnum.TASK.getStatusName().equalsIgnoreCase(approvalTask.getType())
+                    && StringUtils.isNotBlank(approvalTask.getExtraId())) {
+                try {
+                    if (log.isDebugEnabled()) {
+                        log.debug("调用项目服务查询任务名称, approvalTaskId:{}, extraId:{}", approvalTask.getId(), approvalTask.getExtraId());
+                    }
+                    R<String> taskNameResult = projectTaskProcessFeignService.getTaskNameById(approvalTask.getExtraId(), SecurityConstants.INNER);
+                    if (taskNameResult != null && R.isSuccess(taskNameResult)) {
+                        String taskName = StringUtils.isNotBlank(taskNameResult.getData())
+                            ? taskNameResult.getData()
+                            : taskNameResult.getMsg();
+                        if (StringUtils.isNotBlank(taskName)) {
+                            if (log.isInfoEnabled()) {
+                                log.info("查询项目任务名称成功, approvalTaskId:{}, extraId:{}, taskName:{}", approvalTask.getId(), approvalTask.getExtraId(), taskName);
+                            }
+                            taskDisplayName = taskName;
+                        } else {
+                            log.warn("getTaskNameById 成功但返回内容为空, extraId:{}, code:{}, msg:{}", approvalTask.getExtraId(), taskNameResult.getCode(), taskNameResult.getMsg());
+                        }
+                    } else if (taskNameResult != null) {
+                        log.warn("getTaskNameById failed, extraId:{}, code:{}, msg:{}", approvalTask.getExtraId(), taskNameResult.getCode(), taskNameResult.getMsg());
+                    } else {
+                        log.warn("getTaskNameById 返回为空, approvalTaskId:{}, extraId:{}", approvalTask.getId(), approvalTask.getExtraId());
+                    }
+                } catch (Exception ex) {
+                    log.error("调用项目服务查询任务名称异常, extraId:{}", approvalTask.getExtraId(), ex);
+                }
+            }
+            if (StringUtils.isBlank(taskDisplayName)) {
+                taskDisplayName = nodeDisplayName;
+            }
+            flowTask.setTaskName(nodeDisplayName);
             flowTask.setCreateTime(approvalTask.getCreatedTime());
             // 简化审批任务没有流程定义，设置默认值
-            flowTask.setProcDefName("简化审批流程");
+            flowTask.setProcDefName(taskDisplayName);
             flowTask.setProcDefVersion(1);
             // 使用 extraId 作为流程实例ID（用于标识业务对象）
             flowTask.setProcInsId(approvalTask.getExtraId());

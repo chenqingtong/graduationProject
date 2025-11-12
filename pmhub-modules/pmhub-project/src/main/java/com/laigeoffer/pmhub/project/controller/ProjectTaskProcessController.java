@@ -5,7 +5,9 @@ import com.laigeoffer.pmhub.base.core.core.domain.R;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.WfTaskProcess;
 import com.laigeoffer.pmhub.base.core.enums.BusinessType;
 import com.laigeoffer.pmhub.base.security.annotation.InnerAuth;
+import com.laigeoffer.pmhub.project.domain.ProjectTask;
 import com.laigeoffer.pmhub.project.service.ProjectTaskProcessService;
+import com.laigeoffer.pmhub.project.service.ProjectTaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 public class ProjectTaskProcessController {
 
     private final ProjectTaskProcessService projectTaskProcessService;
+    private final ProjectTaskService projectTaskService;
 
     /**
      * 根据 extraId 和 type 查询任务流程
@@ -111,6 +114,16 @@ public class ProjectTaskProcessController {
     public R<Integer> getTaskStatus(@RequestParam("taskId") String taskId) {
         Integer status = projectTaskProcessService.getTaskStatus(taskId);
         return R.ok(status);
+    }
+
+    /**
+     * 根据任务ID查询任务名称
+     */
+    @InnerAuth
+    @GetMapping("/getTaskNameById")
+    public R<String> getTaskNameById(@RequestParam("taskId") String taskId) {
+        ProjectTask task = projectTaskService.getById(taskId);
+        return task != null ? R.ok(task.getTaskName()) : R.fail("任务不存在");
     }
 
     /**
