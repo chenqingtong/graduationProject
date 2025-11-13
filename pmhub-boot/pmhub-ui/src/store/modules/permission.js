@@ -55,6 +55,9 @@ const permission = {
 // 遍历后台传来的路由字符串，转换为组件对象
 function filterAsyncRouter(asyncRouterMap, lastRouter = false, type = false) {
   return asyncRouterMap.filter(route => {
+    if (['workflow/work/index', 'workflow/work/own', 'workflow/work/claim'].includes(route.component)) {
+      return false
+    }
     if (type && route.children) {
       route.children = filterChildren(route.children)
     }

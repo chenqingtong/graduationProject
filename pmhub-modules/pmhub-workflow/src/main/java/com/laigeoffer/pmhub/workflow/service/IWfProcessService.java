@@ -29,17 +29,6 @@ public interface IWfProcessService {
     List<WfDefinitionVo> selectStartProcessList(ProcessQuery processQuery);
 
     /**
-     * 查询我的流程列表
-     * @param pageQuery 分页参数
-     */
-    Table2DataInfo<WfTaskVo> selectPageOwnProcessList(ProcessQuery processQuery, PageQuery pageQuery);
-
-    /**
-     * 查询我的流程列表
-     */
-    List<WfTaskVo> selectOwnProcessList(ProcessQuery processQuery);
-
-    /**
      * 查询代办任务列表
      * @param pageQuery 分页参数
      */
@@ -49,17 +38,6 @@ public interface IWfProcessService {
      * 查询代办任务列表
      */
     List<WfTaskVo> selectTodoProcessList(ProcessQuery processQuery);
-
-    /**
-     * 查询待签任务列表
-     * @param pageQuery 分页参数
-     */
-    Table2DataInfo<WfTaskVo> selectPageClaimProcessList(ProcessQuery processQuery, PageQuery pageQuery);
-
-    /**
-     * 查询待签任务列表
-     */
-    List<WfTaskVo> selectClaimProcessList(ProcessQuery processQuery);
 
     /**
      * 查询已办任务列表
@@ -72,19 +50,6 @@ public interface IWfProcessService {
      */
     List<WfTaskVo> selectFinishedProcessList(ProcessQuery processQuery);
 
-    /**
-     * 查询流程部署关联表单信息
-     * @param definitionId 流程定义ID
-     * @param deployId 部署ID
-     */
-    String selectFormContent(String definitionId, String deployId);
-
-    /**
-     * 启动流程实例
-     * @param procDefId 流程定义ID
-     * @param variables 扩展参数
-     */
-    void startProcessByDefId(String procDefId, Map<String, Object> variables);
     /**
      * 启动任务审批流程实例
      * @param procDefId 流程定义ID

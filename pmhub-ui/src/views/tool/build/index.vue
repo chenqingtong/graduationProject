@@ -154,7 +154,6 @@ import CodeTypeDialog from './CodeTypeDialog'
 import DraggableItem from './DraggableItem'
 import { getDrawingList, saveDrawingList, getIdGlobal, saveIdGlobal, getFormConf } from '@/utils/db'
 import loadBeautifier from '@/utils/loadBeautifier'
-import { getForm, addForm, updateForm } from '@/api/workflow/form'
 import axios from 'axios'
 import Vue from 'vue';
 
@@ -279,11 +278,7 @@ export default {
     that.drawingList = [];
     const formId =  that.$route.query && that.$route.query.formId;
     if (formId) {
-      getForm(formId).then(res => {
-        that.formConf = JSON.parse(res.data.content);
-        that.drawingList = that.formConf.fields;
-        that.form = res.data;
-      })
+      this.$modal.msgWarning("流程表单功能已停用，无法加载历史表单。")
     } else {
       if (formConfInDB) {
         that.formConf = formConfInDB
@@ -537,23 +532,14 @@ export default {
     /** 保存表单信息 */
     submitForm(){
       this.$refs["form"].validate(valid => {
-        if (valid) {
-          if (this.form.formId != null) {
-            updateForm(this.form).then(response => {
-              this.$modal.msgSuccess("修改成功");
-            });
-          } else {
-            addForm(this.form).then(response => {
-              this.$modal.msgSuccess("新增成功");
-            });
-          }
-          this.drawingList = []
-          // this.idGlobal = 100
-          this.open = false;
-          // 关闭当前标签页并返回上个页面
-          this.$store.dispatch("tagsView/delView", this.$route);
-          this.$router.go(-1)
+        if (!valid) {
+          return
         }
+        this.$modal.msgWarning("流程表单功能已停用，当前页面仅支持本地设计预览。")
+        this.drawingList = []
+        this.open = false;
+        this.$store.dispatch("tagsView/delView", this.$route);
+        this.$router.go(-1)
       });
     }
   }

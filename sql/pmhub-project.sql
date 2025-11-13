@@ -305,35 +305,29 @@ COMMIT;
 -- ----------------------------
 -- Table structure for pmhub_project_task_process
 -- ----------------------------
--- ⚠️ 注意：pmhub_project_task_process 表已迁移到 pmhub-workflow 数据库
--- 此表属于工作流模块，由 pmhub-workflow 服务管理
--- 如需创建此表，请使用 sql/pmhub-workflow.sql 脚本
--- 此处的表定义已废弃，保留仅为向后兼容
--- ----------------------------
--- DROP TABLE IF EXISTS `pmhub_project_task_process`;
--- CREATE TABLE `pmhub_project_task_process` (
---   `id` varchar(64) NOT NULL,
---   `extra_id` varchar(64) DEFAULT NULL COMMENT '项目任务id',
---   `approved` varchar(10) DEFAULT NULL COMMENT '是否需要审批',
---   `instance_id` varchar(64) DEFAULT NULL COMMENT '流程实例id',
---   `deployment_id` varchar(64) DEFAULT NULL COMMENT '部署id',
---   `definition_id` varchar(64) DEFAULT NULL COMMENT '流程定义id',
---   `created_by` varchar(64) DEFAULT NULL,
---   `created_time` datetime DEFAULT NULL,
---   `updated_by` varchar(64) DEFAULT NULL,
---   `updated_time` datetime DEFAULT NULL,
---   `type` varchar(64) DEFAULT NULL COMMENT '类型task/project等',
---   `task_id` varchar(64) DEFAULT NULL COMMENT '流程任务id',
---   `url` varchar(1000) DEFAULT NULL COMMENT '详情地址',
---   PRIMARY KEY (`id`) USING BTREE
--- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+DROP TABLE IF EXISTS `pmhub_project_task_process`;
+CREATE TABLE `pmhub_project_task_process` (
+  `id` varchar(64) NOT NULL COMMENT '主键id',
+  `extra_id` varchar(64) DEFAULT NULL COMMENT '项目任务id',
+  `approved` varchar(10) DEFAULT NULL COMMENT '是否需要审批',
+  `instance_id` varchar(64) DEFAULT NULL COMMENT '流程实例id',
+  `deployment_id` varchar(64) DEFAULT NULL COMMENT '部署id',
+  `definition_id` varchar(64) DEFAULT NULL COMMENT '流程定义id',
+  `task_id` varchar(64) DEFAULT NULL COMMENT '流程任务id',
+  `url` varchar(1000) DEFAULT NULL COMMENT '详情地址',
+  `created_by` varchar(64) DEFAULT NULL,
+  `created_time` datetime DEFAULT NULL,
+  `updated_by` varchar(64) DEFAULT NULL,
+  `updated_time` datetime DEFAULT NULL,
+  `type` varchar(64) DEFAULT NULL COMMENT '类型task/project等',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='项目任务流程表';
 
 -- ----------------------------
 -- Records of pmhub_project_task_process
--- 已迁移到 pmhub-workflow 数据库
 -- ----------------------------
--- BEGIN;
--- COMMIT;
+BEGIN;
+COMMIT;
 
 -- ----------------------------
 -- Table structure for pmhub_project_task_work_time

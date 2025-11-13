@@ -226,12 +226,6 @@ export const dynamicRoutes = [
     permissions: ["workflow:process:query"],
     children: [
       {
-        path: "start/:deployId([\\w|\\-]+)",
-        component: () => import("@/views/workflow/work/start"),
-        name: "WorkStart",
-        meta: { title: "发起流程", icon: "" },
-      },
-      {
         path: "detail/:procInsId([\\w|\\-]+)",
         component: () => import("@/views/workflow/work/detail"),
         name: "WorkDetail",
@@ -250,20 +244,6 @@ export const dynamicRoutes = [
         component: () => import("@/views/workflow/work/simplified-approval"),
         name: "SimplifiedApproval",
         meta: { title: "简化审批", activeMenu: "/workflow/work/todo" },
-      },
-    ],
-  },
-  {
-    path: "/process/model/design",
-    component: Layout,
-    hidden: true,
-    permissions: ["workflow:model:designer"],
-    children: [
-      {
-        path: "",
-        component: () => import("@/views/workflow/model/Design"),
-        name: "ModelDesign",
-        meta: { title: "流程设计", activeMenu: "/process/model", noCache: true },
       },
     ],
   },

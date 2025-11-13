@@ -29,17 +29,6 @@ public interface IWfProcessService {
     List<WfDefinitionVo> selectStartProcessList(ProcessQuery processQuery);
 
     /**
-     * 查询我的流程列表
-     * @param pageQuery 分页参数
-     */
-    Table2DataInfo<WfTaskVo> selectPageOwnProcessList(ProcessQuery processQuery, PageQuery pageQuery);
-
-    /**
-     * 查询我的流程列表
-     */
-    List<WfTaskVo> selectOwnProcessList(ProcessQuery processQuery);
-
-    /**
      * 查询代办任务列表
      * @param pageQuery 分页参数
      */
@@ -49,17 +38,6 @@ public interface IWfProcessService {
      * 查询代办任务列表
      */
     List<WfTaskVo> selectTodoProcessList(ProcessQuery processQuery);
-
-    /**
-     * 查询待签任务列表
-     * @param pageQuery 分页参数
-     */
-    Table2DataInfo<WfTaskVo> selectPageClaimProcessList(ProcessQuery processQuery, PageQuery pageQuery);
-
-    /**
-     * 查询待签任务列表
-     */
-    List<WfTaskVo> selectClaimProcessList(ProcessQuery processQuery);
 
     /**
      * 查询已办任务列表

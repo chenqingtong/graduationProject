@@ -1,7 +1,6 @@
 package com.laigeoffer.pmhub.web.controller.workflow;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.util.ObjectUtil;
 import com.laigeoffer.pmhub.common.annotation.Log;
 import com.laigeoffer.pmhub.common.core.controller.BaseController;
 import com.laigeoffer.pmhub.common.core.domain.PageQuery;
@@ -52,33 +51,12 @@ public class WfProcessController extends BaseController {
     }
 
     /**
-     * 我拥有的流程
-     */
-    @PreAuthorize("@ss.hasPermi('workflow:process:ownList')")
-    @GetMapping(value = "/ownList")
-    public Table2DataInfo<WfTaskVo> ownProcessList(ProcessQuery processQuery, PageQuery pageQuery) {
-        return processService.selectPageOwnProcessList(processQuery, pageQuery);
-    }
-
-    /**
      * 获取待办列表
      */
     @PreAuthorize("@ss.hasPermi('workflow:process:todoList')")
     @GetMapping(value = "/todoList")
     public Table2DataInfo<WfTaskVo> todoProcessList(ProcessQuery processQuery, PageQuery pageQuery) {
         return processService.selectPageTodoProcessList(processQuery, pageQuery);
-    }
-
-    /**
-     * 获取待签列表
-     *
-     * @param processQuery 流程业务对象
-     * @param pageQuery 分页参数
-     */
-    @PreAuthorize("@ss.hasPermi('workflow:process:claimList')")
-    @GetMapping(value = "/claimList")
-    public Table2DataInfo<WfTaskVo> claimProcessList(ProcessQuery processQuery, PageQuery pageQuery) {
-        return processService.selectPageClaimProcessList(processQuery, pageQuery);
     }
 
     /**
@@ -117,21 +95,6 @@ public class WfProcessController extends BaseController {
     }
 
     /**
-     * 导出我拥有流程列表
-     */
-    @PreAuthorize("@ss.hasPermi('workflow:process:ownExport')")
-    @Log(title = "我拥有流程", businessType = BusinessType.EXPORT)
-    @PostMapping("/ownExport")
-    public void ownExport(@Validated ProcessQuery processQuery, HttpServletResponse response) {
-        List<WfTaskVo> list = processService.selectOwnProcessList(processQuery);
-        List<WfOwnTaskExportVo> listVo = BeanUtil.copyToList(list, WfOwnTaskExportVo.class);
-        for (WfOwnTaskExportVo exportVo : listVo) {
-            exportVo.setStatus(ObjectUtil.isNull(exportVo.getFinishTime()) ? "进行中" : "已完成");
-        }
-        ExcelUtil.exportExcel2(listVo, "我拥有流程", WfOwnTaskExportVo.class, response);
-    }
-
-    /**
      * 导出待办流程列表
      */
     @PreAuthorize("@ss.hasPermi('workflow:process:todoExport')")
@@ -141,18 +104,6 @@ public class WfProcessController extends BaseController {
         List<WfTaskVo> list = processService.selectTodoProcessList(processQuery);
         List<WfTodoTaskExportVo> listVo = BeanUtil.copyToList(list, WfTodoTaskExportVo.class);
         ExcelUtil.exportExcel2(listVo, "待办流程", WfTodoTaskExportVo.class, response);
-    }
-
-    /**
-     * 导出待签流程列表
-     */
-    @PreAuthorize("@ss.hasPermi('workflow:process:claimExport')")
-    @Log(title = "待签流程", businessType = BusinessType.EXPORT)
-    @PostMapping("/claimExport")
-    public void claimExport(@Validated ProcessQuery processQuery, HttpServletResponse response) {
-        List<WfTaskVo> list = processService.selectClaimProcessList(processQuery);
-        List<WfClaimTaskExportVo> listVo = BeanUtil.copyToList(list, WfClaimTaskExportVo.class);
-        ExcelUtil.exportExcel2(listVo, "待签流程", WfClaimTaskExportVo.class, response);
     }
 
     /**

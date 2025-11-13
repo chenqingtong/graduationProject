@@ -53,8 +53,35 @@ const permission = {
 }
 
 // 遍历后台传来的路由字符串，转换为组件对象
+const removedWorkflowComponents = [
+  "workflow/work/index",
+  "workflow/work/own",
+  "workflow/work/claim",
+  "workflow/category",
+  "workflow/category/index",
+  "workflow/form",
+  "workflow/form/index",
+  "workflow/model",
+  "workflow/model/index",
+  "workflow/model/Design",
+  "workflow/deploy",
+  "workflow/deploy/index"
+]
+
+function shouldRemoveRoute(component) {
+  if (!component) {
+    return false
+  }
+  return removedWorkflowComponents.some((name) => {
+    return component === name || component.startsWith(`${name}/`)
+  })
+}
+
 function filterAsyncRouter(asyncRouterMap, lastRouter = false, type = false) {
   return asyncRouterMap.filter(route => {
+    if (shouldRemoveRoute(route.component)) {
+      return false
+    }
     if (type && route.children) {
       route.children = filterChildren(route.children)
     }

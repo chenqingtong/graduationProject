@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <el-tabs tab-position="top" :value="finished === 'true' ? 'approval' : 'form'" @tab-click="tabClick">
+    <el-tabs tab-position="top" v-model="activeTab">
       <el-tab-pane label="任务办理" name="approval" v-if="finished === 'true'">
         <el-card class="box-card" shadow="hover" v-if="taskFormOpen">
           <div slot="header" class="clearfix">
@@ -84,33 +84,6 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="表单信息" name="form">
-        <div v-if="formOpen">
-          <el-card class="box-card" shadow="never" v-for="(formInfo, index) in processFormList" :key="index">
-            <div slot="header" class="clearfix">
-              <span>{{ formInfo.title }}</span>
-            </div>
-            <!--流程处理表单模块-->
-            <div class="layout">
-              <div class="form-conf">
-                <parser :form-conf="formInfo" />
-              </div>
-              <template>
-                <el-divider direction="vertical"></el-divider>
-                <div class="action">
-                  <el-button type="primary" size="small" @click="handleJumpInfo" v-if="jumpInfoButtonVisible">
-                    跳转到单据详情
-                  </el-button>
-                  <el-button type="primary" size="small" @click="handleDownload" v-if="downloadButtonVisible">
-                    下载最终交付物
-                  </el-button>
-                </div>
-              </template>
-            </div>
-          </el-card>
-        </div>
-      </el-tab-pane>
-
       <el-tab-pane label="流转记录" name="record">
         <el-card class="box-card" shadow="never">
           <el-col :span="20" :offset="2">
@@ -156,19 +129,6 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="流程跟踪" name="track">
-        <el-card class="box-card" shadow="never">
-          <process-viewer
-            :key="`designer-${loadIndex}`"
-            :style="'height:' + height"
-            :xml="xmlData"
-            :finishedInfo="finishedInfo"
-            :allCommentList="historyProcNodeList"
-            ref="processViewerRef"
-          />
-        </el-card>
-      </el-tab-pane>
-
       <el-tab-pane label="打印" name="print">
         <div style="margin-bottom: 20px; float: right">
           <el-button type="primary" size="small" @click="downloadPDF">导出 PDF</el-button>
@@ -176,15 +136,6 @@
         </div>
 
         <div id="print">
-          <div v-if="formOpen">
-            <el-card class="box-card" shadow="never" v-for="(formInfo, index) in processFormList" :key="index">
-              <div slot="header" class="clearfix">
-                <span>{{ formInfo.title }}</span>
-              </div>
-              <!--流程处理表单模块-->
-              <parser :form-conf="formInfo" />
-            </el-card>
-          </div>
           <el-card class="box-card" shadow="never">
             <el-col :span="20" :offset="2">
               <div class="block">
@@ -316,23 +267,16 @@
 <script>
 import { detailProcess } from "@/api/workflow/process"
 import Parser from "@/utils/generator/parser"
-import { getURLParams } from "@/utils/index"
 import { complete, delegate, transfer, rejectTask, returnList, returnTask } from "@/api/workflow/task"
 import { selectUser, deptTreeSelect } from "@/api/system/user"
-import ProcessViewer from "@/components/ProcessViewer"
 import "@riophae/vue-treeselect/dist/vue-treeselect.css"
 import Treeselect from "@riophae/vue-treeselect"
 import html2canvas from "html2canvas"
 import { jsPDF } from "jspdf"
-import { decrypt } from "@/api/public/public"
-import { formDecryptReg, transformRegStr } from "@/utils/formDecrypt"
-
-const reg = /http/
 
 export default {
   name: "WorkDetail",
   components: {
-    ProcessViewer,
     Parser,
     Treeselect,
   },
@@ -378,54 +322,10 @@ export default {
         }
       }
     },
-    // 是否显示 "跳转到详情" 按钮
-    jumpInfoButtonVisible() {
-      try {
-        // "我的任务" 和 “报废列表” 发起的审批，第三个表单元素的值是详情链接
-        const href = this.processFormList[0].fields[2].__config__.defaultValue
-        if (reg.test(href)) {
-          return true
-        } else {
-          // "出库入库" 发起的审批，没有详情页
-          return false
-        }
-      } catch (error) {
-        this.$modal.msgError("表单数据不符合要求，请尽快联系管理员")
-      }
-    },
-    // 是否显示 "下载交付物" 按钮
-    downloadButtonVisible() {
-      try {
-        // "我的任务" 发起的审批，第三个表单元素的值是详情链接（链接里拼接有下载交付物地址）
-        // "报废列表" 发起的审批，第三个表单元素的值是详情链接
-        const href = this.processFormList[0].fields[2].__config__.defaultValue
-        const scrapReg = /\/pmhub-materials\/materials-scrap/
-        if (scrapReg.test(href)) {
-          // "报废列表" 发起的审批，没有下载按钮
-          return false
-        } else if (reg.test(href)) {
-          return true
-        } else {
-          // "出库入库" 发起的审批，没有下载按钮
-          return false
-        }
-      } catch (error) {
-        this.$modal.msgError("表单数据不符合要求，请尽快联系管理员")
-      }
-    },
   },
   data() {
     return {
-      height: document.documentElement.clientHeight - 205 + "px;",
-      // 模型xml数据
-      loadIndex: 0,
-      xmlData: undefined,
-      finishedInfo: {
-        finishedSequenceFlowSet: [],
-        finishedTaskSet: [],
-        unfinishedTaskSet: [],
-        rejectedTaskSet: [],
-      },
+      activeTab: "record",
       historyProcNodeList: [],
       // 部门名称
       deptName: undefined,
@@ -458,12 +358,10 @@ export default {
       rules: {
         comment: [{ required: true, message: "请输入审批意见", trigger: "blur" }],
       },
-      currentUserId: null,
-      variables: [], // 流程变量数据
       taskFormOpen: false,
       taskFormData: {}, // 流程变量数据
-      processFormList: [], // 流程变量数据
-      formOpen: false, // 是否加载流程变量数据
+      currentUserId: null,
+      variables: [], // 流程变量数据
       returnTaskList: [], // 回退列表数据
       finished: "false",
       returnTitle: null,
@@ -486,30 +384,17 @@ export default {
     this.initData()
   },
   methods: {
-    tabClick(e) {
-      if (e.name === "track") {
-        setTimeout(() => {
-          this.$refs.processViewerRef.processReZoom()
-        }, 100)
-        setTimeout(() => {
-          this.$refs.processViewerRef.processReZoom()
-        }, 500)
-        setTimeout(() => {
-          this.$refs.processViewerRef.processReZoom()
-        }, 800)
-      }
-    },
     initData() {
       this.taskForm.procInsId = this.$route.params && this.$route.params.procInsId
       this.taskForm.deployId = this.$route.query && this.$route.query.deployId
       this.taskForm.definitionId = this.$route.query && this.$route.query.definitionId
       this.taskForm.taskId = this.$route.query && this.$route.query.taskId
       this.finished = this.$route.query && this.$route.query.finished
+      this.activeTab = this.finished === "true" ? "approval" : "record"
       // 流程任务重获取变量表单
       if (this.taskForm.taskId) {
         this.getProcessDetails(this.taskForm.procInsId, this.taskForm.deployId, this.taskForm.taskId)
       }
-      this.loadIndex = this.taskForm.procInsId
     },
     /** 查询部门下拉树结构 */
     getTreeSelect() {
@@ -605,36 +490,15 @@ export default {
         }
       }
     },
-    /** 处理表单 JSON */
-    async transformProcessFormList(processFormList) {
-      let json = JSON.stringify(processFormList)
-      const encryptArray = json.match(formDecryptReg)
-      const mapArray = []
-      for (let i = 0; i < encryptArray?.length; i++) {
-        const res = await decrypt(encryptArray[i])
-        mapArray.push({
-          old: transformRegStr(encryptArray[i]),
-          new: res.data,
-        })
-      }
-      for (let i = 0; i < mapArray.length; i++) {
-        json = json.replace(mapArray[i].old, mapArray[i].new)
-      }
-      return JSON.parse(json)
-    },
     getProcessDetails(procInsId, deployId, taskId) {
       const params = { procInsId: procInsId, deployId: deployId, taskId: taskId }
-      detailProcess(params).then(async (res) => {
+      detailProcess(params).then((res) => {
         const data = res.data
-        this.xmlData = data.bpmnXml
-        this.processFormList = await this.transformProcessFormList(data.processFormList)
         this.taskFormOpen = data.existTaskForm
         if (this.taskFormOpen) {
           this.taskFormData = data.taskFormData
         }
-        this.historyProcNodeList = data.historyProcNodeList
-        this.finishedInfo = data.flowViewer
-        this.formOpen = true
+        this.historyProcNodeList = data.historyProcNodeList || []
       })
     },
     onSelectCopyUsers() {
@@ -829,55 +693,6 @@ export default {
         }
       })
     },
-    // 跳转到详情页
-    handleJumpInfo() {
-      try {
-        // "我的任务" 发起的审批，第三个表单元素的值是详情链接
-        const href = this.processFormList[0].fields[2].__config__.defaultValue
-        if (reg.test(href)) {
-          window.open(href)
-        } else {
-          // "出库入库" 发起的审批，没有详情页
-          this.$modal.msgWarning("未发现详情链接")
-        }
-      } catch (error) {
-        this.$modal.msgError("表单数据不符合要求，请尽快联系管理员")
-      }
-    },
-    // 下载交付物
-    handleDownload() {
-      try {
-        // "我的任务" 发起的审批，第三个表单元素详情链接 URL 参数携带着下载交付物需要的数据
-        const href = this.processFormList[0].fields[2].__config__.defaultValue
-        if (reg.test(href)) {
-          const paramsObj = getURLParams(href)
-          const projectFileId = paramsObj.projectFileId
-          const fileUrl = paramsObj.fileUrl
-          if (
-            projectFileId === undefined ||
-            fileUrl === undefined ||
-            projectFileId === "undefined" ||
-            fileUrl === "undefined"
-          ) {
-            this.$modal.msgError("没有交付物数据")
-            return
-          }
-          this.download(
-            "/project/file/download",
-            {
-              projectFileId,
-              fileUrl,
-            },
-            undefined
-          )
-        } else {
-          // "出库入库" 发起的审批，没有下载交付物功能
-          this.$modal.msgWarning("没有该功能")
-        }
-      } catch (error) {
-        this.$modal.msgError("表单数据不符合要求，请尽快联系管理员")
-      }
-    },
     // 打印页面
     printFile() {
       if (this.$store.state.app.sidebar.opened) {
@@ -940,26 +755,6 @@ export default {
 .box-card {
   width: 100%;
   margin-bottom: 20px;
-  .layout {
-    display: flex;
-    // .form-conf {
-    //   width: 80%;
-    // }
-    .el-divider--vertical {
-      height: auto;
-      margin: 0 30px;
-    }
-    .action {
-      display: flex;
-      flex-direction: column;
-      .el-button {
-        margin-bottom: 15px;
-      }
-      .el-button + .el-button {
-        margin-left: 0px;
-      }
-    }
-  }
 }
 
 .el-tag + .el-tag {

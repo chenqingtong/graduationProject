@@ -43,28 +43,10 @@ export function detailProcess(query) {
   })
 }
 
-// 我的发起的流程
-export function listOwnProcess(query) {
-  return request({
-    url: '/workflow/process/ownList',
-    method: 'get',
-    params: query
-  })
-}
-
 // 我待办的流程
 export function listTodoProcess(query) {
   return request({
     url: '/workflow/process/todoList',
-    method: 'get',
-    params: query
-  })
-}
-
-// 我待签的流程
-export function listClaimProcess(query) {
-  return request({
-    url: '/workflow/process/claimList',
     method: 'get',
     params: query
   })
@@ -85,22 +67,5 @@ export function listCopyProcess(query) {
     url: '/workflow/process/copyList',
     method: 'get',
     params: query
-  })
-}
-
-// 取消申请
-export function stopProcess(data) {
-  return request({
-    url: '/workflow/task/stopProcess',
-    method: 'post',
-    data: data
-  })
-}
-
-// 删除流程实例
-export function delProcess(id) {
-  return request({
-    url: '/workflow/instance/delete/?instanceId=' + id,
-    method: 'delete'
   })
 }

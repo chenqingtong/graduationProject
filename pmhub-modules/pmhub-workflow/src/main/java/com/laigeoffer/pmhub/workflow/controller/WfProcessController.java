@@ -1,7 +1,6 @@
 package com.laigeoffer.pmhub.workflow.controller;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.util.ObjectUtil;
 import com.laigeoffer.pmhub.base.core.annotation.Log;
 import com.laigeoffer.pmhub.base.core.core.controller.BaseController;
 import com.laigeoffer.pmhub.base.core.core.domain.PageQuery;
@@ -9,7 +8,6 @@ import com.laigeoffer.pmhub.base.core.core.domain.R;
 import com.laigeoffer.pmhub.base.core.core.domain.dto.ProjectProcessDTO;
 import com.laigeoffer.pmhub.base.core.core.page.Table2DataInfo;
 import com.laigeoffer.pmhub.base.core.enums.BusinessType;
-import com.laigeoffer.pmhub.base.core.utils.JsonUtils;
 import com.laigeoffer.pmhub.base.core.utils.poi.ExcelUtil;
 import com.laigeoffer.pmhub.base.security.annotation.InnerAuth;
 import com.laigeoffer.pmhub.base.security.annotation.RequiresPermissions;
@@ -55,33 +53,12 @@ public class WfProcessController extends BaseController {
     }
 
     /**
-     * 我拥有的流程
-     */
-    @RequiresPermissions("workflow:process:ownList")
-    @GetMapping(value = "/ownList")
-    public Table2DataInfo<WfTaskVo> ownProcessList(ProcessQuery processQuery, PageQuery pageQuery) {
-        return processService.selectPageOwnProcessList(processQuery, pageQuery);
-    }
-
-    /**
      * 获取待办列表
      */
     @RequiresPermissions("workflow:process:todoList")
     @GetMapping(value = "/todoList")
     public Table2DataInfo<WfTaskVo> todoProcessList(ProcessQuery processQuery, PageQuery pageQuery) {
         return processService.selectPageTodoProcessList(processQuery, pageQuery);
-    }
-
-    /**
-     * 获取待签列表
-     *
-     * @param processQuery 流程业务对象
-     * @param pageQuery 分页参数
-     */
-    @RequiresPermissions("workflow:process:claimList")
-    @GetMapping(value = "/claimList")
-    public Table2DataInfo<WfTaskVo> claimProcessList(ProcessQuery processQuery, PageQuery pageQuery) {
-        return processService.selectPageClaimProcessList(processQuery, pageQuery);
     }
 
     /**
@@ -120,21 +97,6 @@ public class WfProcessController extends BaseController {
     }
 
     /**
-     * 导出我拥有流程列表
-     */
-    @RequiresPermissions("workflow:process:ownExport")
-    @Log(title = "我拥有流程", businessType = BusinessType.EXPORT)
-    @PostMapping("/ownExport")
-    public void ownExport(@Validated ProcessQuery processQuery, HttpServletResponse response) {
-        List<WfTaskVo> list = processService.selectOwnProcessList(processQuery);
-        List<WfOwnTaskExportVo> listVo = BeanUtil.copyToList(list, WfOwnTaskExportVo.class);
-        for (WfOwnTaskExportVo exportVo : listVo) {
-            exportVo.setStatus(ObjectUtil.isNull(exportVo.getFinishTime()) ? "进行中" : "已完成");
-        }
-        ExcelUtil.exportExcel2(listVo, "我拥有流程", WfOwnTaskExportVo.class, response);
-    }
-
-    /**
      * 导出待办流程列表
      */
     @RequiresPermissions("workflow:process:todoExport")
@@ -144,18 +106,6 @@ public class WfProcessController extends BaseController {
         List<WfTaskVo> list = processService.selectTodoProcessList(processQuery);
         List<WfTodoTaskExportVo> listVo = BeanUtil.copyToList(list, WfTodoTaskExportVo.class);
         ExcelUtil.exportExcel2(listVo, "待办流程", WfTodoTaskExportVo.class, response);
-    }
-
-    /**
-     * 导出待签流程列表
-     */
-    @RequiresPermissions("workflow:process:claimExport")
-    @Log(title = "待签流程", businessType = BusinessType.EXPORT)
-    @PostMapping("/claimExport")
-    public void claimExport(@Validated ProcessQuery processQuery, HttpServletResponse response) {
-        List<WfTaskVo> list = processService.selectClaimProcessList(processQuery);
-        List<WfClaimTaskExportVo> listVo = BeanUtil.copyToList(list, WfClaimTaskExportVo.class);
-        ExcelUtil.exportExcel2(listVo, "待签流程", WfClaimTaskExportVo.class, response);
     }
 
     /**
@@ -180,34 +130,6 @@ public class WfProcessController extends BaseController {
         copyBo.setUserId(SecurityUtils.getUserId());
         List<WfCopyVo> list = copyService.selectList(copyBo);
         ExcelUtil.exportExcel2(list, "抄送流程", WfCopyVo.class, response);
-    }
-
-    /**
-     * 查询流程部署关联表单信息
-     *
-     * @param definitionId 流程定义id
-     * @param deployId 流程部署id
-     */
-    @GetMapping("/getProcessForm")
-    @RequiresPermissions("workflow:process:start")
-    public R<?> getForm(@RequestParam(value = "definitionId") String definitionId,
-                        @RequestParam(value = "deployId") String deployId) {
-        String formContent = processService.selectFormContent(definitionId, deployId);
-        return R.ok(JsonUtils.parseObject(formContent, Map.class));
-    }
-
-    /**
-     * 根据流程定义id启动流程实例
-     *
-     * @param processDefId 流程定义id
-     * @param variables 变量集合,json对象
-     */
-    @RequiresPermissions("workflow:process:start")
-    @PostMapping("/start/{processDefId}")
-    public R<Void> start(@PathVariable(value = "processDefId") String processDefId, @RequestBody Map<String, Object> variables) {
-        processService.startProcessByDefId(processDefId, variables);
-        return R.ok("流程启动成功");
-
     }
 
     /**

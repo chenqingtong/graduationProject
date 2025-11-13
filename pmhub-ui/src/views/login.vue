@@ -52,9 +52,8 @@
     </el-form>
     <!--  底部  -->
     <div class="el-login-footer">
-      <span>Copyright © 2022-至今 </span>
-      <a href="https://github.com/laigeoffer" target="_blank">来个offer官方，</a>
-      <a href="https://github.com/laigeoffer/pmhub" target="_blank">项目源码</a>
+      <span>Copyright © 2024-至今 </span>
+
     </div>
   </div>
 </template>

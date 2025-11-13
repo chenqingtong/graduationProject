@@ -26,18 +26,6 @@ public class WfDetailVo {
     private List<WfProcNodeVo> historyProcNodeList;
 
     /**
-     * 流程表单列表
-     */
-    private List<FormConf> processFormList;
-
-    /**
-     * 流程XML
-     */
-    private String bpmnXml;
-
-    private WfViewerVo flowViewer;
-
-    /**
      * 是否存在任务表单信息
      * @return true:存在；false:不存在
      */
