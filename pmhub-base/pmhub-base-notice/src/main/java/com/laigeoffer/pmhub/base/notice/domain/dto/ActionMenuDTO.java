@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 卡片右上角更多操作按钮
  * TODO: 2023/2/27 此类的变量名为匹配微信接口使用按下划命名，后期安排优化
- * @author canghe
+ * @author chenqingtong
  */
 @Data
 public class ActionMenuDTO {

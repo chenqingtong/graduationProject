@@ -39,8 +39,8 @@ import java.util.*;
 /**
  * 工作流流程实例管理
  *
- * @author canghe
- * @createTime 2022/3/10 00:12
+ * @author chenqingtong
+ * @createTime 2024/3/10 00:12
  */
 @RequiredArgsConstructor
 @Service
@@ -70,7 +70,9 @@ public class WfInstanceServiceImpl extends FlowServiceFactory implements IWfInst
      */
     @Override
     public void updateState(Integer state, String instanceId) {
-
+        if (runtimeService == null) {
+            throw new ServiceException("Flowable 服务未启用，无法更新流程实例状态");
+        }
         // 激活
         if (state == 1) {
             runtimeService.activateProcessInstanceById(instanceId);

@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * 用户 业务层
  *
- * @author canghe
+ * @author chenqingtong
  */
 public interface ISysUserService {
     /**

@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * 字符串拼接工具
- * @author canghe
+ * @author chenqingtong
  */
 public class StringCreateUtils {
 

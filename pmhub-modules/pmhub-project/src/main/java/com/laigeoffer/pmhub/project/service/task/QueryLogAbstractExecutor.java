@@ -5,7 +5,7 @@ import com.laigeoffer.pmhub.project.domain.vo.project.log.ProjectLogVO;
 import java.util.List;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @date 2023-01-09 16:21
  */
 public abstract class QueryLogAbstractExecutor {

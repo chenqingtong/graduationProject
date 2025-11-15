@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 企微消息推送相关工具类
- * @author canghe
+ * @author chenqingtong
  */
 @Component
 public class MessageUtils {

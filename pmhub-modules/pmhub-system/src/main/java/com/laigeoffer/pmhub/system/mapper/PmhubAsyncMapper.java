@@ -6,7 +6,7 @@ import com.laigeoffer.pmhub.system.domain.PmhubAsync;
 /**
  * 异步任务 数据层
  *
- * @author canghe
+ * @author chenqingtong
  */
 public interface PmhubAsyncMapper extends BaseMapper<PmhubAsync> {
 

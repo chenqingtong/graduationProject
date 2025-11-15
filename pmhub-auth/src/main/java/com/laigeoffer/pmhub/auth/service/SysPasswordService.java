@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 登录密码方法
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Component
 public class SysPasswordService {

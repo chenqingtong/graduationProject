@@ -5,7 +5,7 @@ import cn.hutool.json.JSONObject;
 
 /**
  * 企微机器人通知
- * @author canghe
+ * @author chenqingtong
  */
 public class WxBotUtils {
 

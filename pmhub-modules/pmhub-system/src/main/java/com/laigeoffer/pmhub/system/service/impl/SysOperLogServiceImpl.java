@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * 操作日志 服务层处理
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Service
 public class SysOperLogServiceImpl implements ISysOperLogService {

@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.system.domain;
 /**
  * 当前在线会话
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class SysUserOnline {
     /**

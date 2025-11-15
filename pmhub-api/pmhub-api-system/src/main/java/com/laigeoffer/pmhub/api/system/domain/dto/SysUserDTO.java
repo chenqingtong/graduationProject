@@ -11,7 +11,7 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @description SysUserDTO
  * @create 2024-06-24-16:50
  */

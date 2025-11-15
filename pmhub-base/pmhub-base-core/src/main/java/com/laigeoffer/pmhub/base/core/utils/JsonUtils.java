@@ -18,7 +18,7 @@ import java.util.List;
 /**
  * JSON 工具类
  *
- * @author canghe
+ * @author chenqingtong
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class JsonUtils {

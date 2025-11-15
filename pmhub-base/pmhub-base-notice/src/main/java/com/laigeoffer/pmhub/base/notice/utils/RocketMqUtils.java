@@ -9,13 +9,14 @@ import com.laigeoffer.pmhub.base.notice.domain.dto.MessageDataDTO;
 import com.laigeoffer.pmhub.base.notice.domain.dto.ProcessWxMessageStateUpdateDTO;
 import com.laigeoffer.pmhub.base.notice.domain.entity.WxResult;
 import com.laigeoffer.pmhub.base.notice.enums.ButtonStateEnum;
-import org.apache.rocketmq.client.apis.ClientConfiguration;
-import org.apache.rocketmq.client.apis.ClientConfigurationBuilder;
-import org.apache.rocketmq.client.apis.ClientException;
-import org.apache.rocketmq.client.apis.ClientServiceProvider;
-import org.apache.rocketmq.client.apis.message.Message;
-import org.apache.rocketmq.client.apis.producer.Producer;
-import org.apache.rocketmq.client.apis.producer.SendReceipt;
+// RocketMQ 相关导入已注释 - 如需使用请取消注释
+//import org.apache.rocketmq.client.apis.ClientConfiguration;
+//import org.apache.rocketmq.client.apis.ClientConfigurationBuilder;
+//import org.apache.rocketmq.client.apis.ClientException;
+//import org.apache.rocketmq.client.apis.ClientServiceProvider;
+//import org.apache.rocketmq.client.apis.message.Message;
+//import org.apache.rocketmq.client.apis.producer.Producer;
+//import org.apache.rocketmq.client.apis.producer.SendReceipt;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -24,9 +25,12 @@ import java.io.IOException;
 
 /**
  * RocketMQ连接工具
- * @author canghe
+ * 
+ * 已禁用：RocketMQ 相关功能已移除，如需使用请重新启用
+ * 
+ * @author chenqingtong
  */
-@Component
+//@Component
 public class RocketMqUtils {
 
 
@@ -62,9 +66,13 @@ public class RocketMqUtils {
 
     /**
      * 推送到微信topic
+     * 
+     * 已禁用：RocketMQ 相关功能已移除，如需使用请取消注释
      * */
     public static void push2Wx(com.laigeoffer.pmhub.base.notice.domain.entity.Message ob){
-
+        // RocketMQ 功能已禁用
+        LogFactory.get().warn("RocketMQ 功能已禁用，消息推送已跳过");
+        /*
         try {
 
             String key = IdUtil.simpleUUID();
@@ -100,7 +108,7 @@ public class RocketMqUtils {
         } catch (ClientException | IOException e) {
             LogFactory.get().error("推送微信消息时发生错误：", e);
         }
-
+        */
     }
 
 

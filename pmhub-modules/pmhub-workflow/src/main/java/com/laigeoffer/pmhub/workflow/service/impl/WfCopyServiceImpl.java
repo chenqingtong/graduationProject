@@ -24,7 +24,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.history.HistoricProcessInstance;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.laigeoffer.pmhub.base.core.exception.ServiceException;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -36,8 +38,8 @@ import java.util.stream.Collectors;
 /**
  * 流程抄送Service业务层处理
  *
- * @author canghe
- * @date 2022-05-19
+ * @author chenqingtong
+ * @date 2024-05-19
  */
 @RequiredArgsConstructor
 @Service
@@ -46,7 +48,8 @@ public class WfCopyServiceImpl implements IWfCopyService {
 
     private final WfCopyMapper baseMapper;
 
-    private final HistoryService historyService;
+    @Autowired(required = false)
+    private HistoryService historyService;
 
     private final WfApprovalTaskMapper wfApprovalTaskMapper;
 
@@ -168,6 +171,9 @@ public class WfCopyServiceImpl implements IWfCopyService {
         if (StringUtils.isBlank(taskBo.getCopyUserIds())) {
             // 若抄送用户为空，则不需要处理，返回成功
             return true;
+        }
+        if (historyService == null) {
+            throw new ServiceException("Flowable 服务未启用，无法创建流程抄送");
         }
         HistoricProcessInstance historicProcessInstance = historyService.createHistoricProcessInstanceQuery()
             .processInstanceId(taskBo.getProcInsId()).singleResult();

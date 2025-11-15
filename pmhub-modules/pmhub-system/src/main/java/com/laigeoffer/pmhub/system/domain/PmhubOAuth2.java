@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * OAuth2 参数
- * @author canghe
+ * @author chenqingtong
  * @date 2024/01/10
  */
 @Data

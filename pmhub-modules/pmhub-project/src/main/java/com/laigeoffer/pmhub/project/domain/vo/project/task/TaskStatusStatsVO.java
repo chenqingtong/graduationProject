@@ -2,8 +2,8 @@ package com.laigeoffer.pmhub.project.domain.vo.project.task;
 
 
 /**
- * @author canghe
- * @date 2022-12-20 09:19
+ * @author chenqingtong
+ * @date 2024-12-20 09:19
  */
 
 public class TaskStatusStatsVO {

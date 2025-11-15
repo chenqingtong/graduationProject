@@ -5,7 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * 未能通过的角色认证异常
  * 
- * @author canghe
+ * @author chenqingtong
  */
 public class NotRoleException extends RuntimeException
 {

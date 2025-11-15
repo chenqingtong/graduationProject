@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * 岗位信息操作处理
  *
- * @author canghe
+ * @author chenqingtong
  */
 @RestController
 @RequestMapping("/system/post")

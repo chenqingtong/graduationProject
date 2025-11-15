@@ -8,8 +8,8 @@ import java.util.Map;
 /**
  * 表单属性类
  *
- * @author canghe
- * @createTime 2022/8/6 18:54
+ * @author chenqingtong
+ * @createTime 2024/8/6 18:54
  */
 @Data
 public class FormConf {

@@ -68,8 +68,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * @author canghe
- * @createTime 2022/3/24 18:57
+ * @author chenqingtong
+ * @createTime 2024/3/24 18:57
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -95,6 +95,9 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
      */
     @Override
     public Table2DataInfo<WfDefinitionVo> selectPageStartProcessList(ProcessQuery processQuery, PageQuery pageQuery) {
+        if (repositoryService == null) {
+            throw new ServiceException("Flowable 服务未启用，无法查询流程定义列表");
+        }
         Page<WfDefinitionVo> page = new Page<>();
         // 流程定义列表数据查询
         ProcessDefinitionQuery processDefinitionQuery = repositoryService.createProcessDefinitionQuery()
@@ -170,8 +173,9 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         Page<WfTaskVo> page = new Page<>();
         List<WfTaskVo> flowList = new ArrayList<>();
         
-        // 1. 查询 Flowable 流程引擎的待办任务
-        TaskQuery taskQuery = taskService.createTaskQuery()
+        // 1. 查询 Flowable 流程引擎的待办任务（如果 Flowable 服务可用）
+        if (taskService != null && repositoryService != null && historyService != null) {
+            TaskQuery taskQuery = taskService.createTaskQuery()
             .active()
             .includeProcessVariables()
             .or()
@@ -221,6 +225,7 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
             flowTask.setProcVars(this.getProcessVariables(task.getId()));
 
             flowList.add(flowTask);
+        }
         }
         
         // 2. 查询简化审批任务的待办列表
@@ -406,8 +411,9 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         Page<WfTaskVo> page = new Page<>();
         List<WfTaskVo> allFinishedTasks = new ArrayList<>();
         
-        // 1. 查询 Flowable 历史任务
-        HistoricTaskInstanceQuery taskInstanceQuery = historyService.createHistoricTaskInstanceQuery()
+        // 1. 查询 Flowable 历史任务（如果 Flowable 服务可用）
+        if (historyService != null && repositoryService != null) {
+            HistoricTaskInstanceQuery taskInstanceQuery = historyService.createHistoricTaskInstanceQuery()
             .includeProcessVariables()
             .finished()
             .taskAssignee(TaskUtils.getUserId())
@@ -460,6 +466,7 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
             flowTask.setProcVars(this.getProcessVariables(histTask.getId()));
 
             allFinishedTasks.add(flowTask);
+        }
         }
         
         // 2. 查询简化审批任务的已办列表

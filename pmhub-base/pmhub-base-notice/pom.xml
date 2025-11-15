@@ -34,7 +34,8 @@
             <artifactId>lombok</artifactId>
         </dependency>
 
-        <!-- rocketmq -->
+        <!-- rocketmq - 已移除，如需使用请取消注释 -->
+        <!--
         <dependency>
             <groupId>org.apache.rocketmq</groupId>
             <artifactId>rocketmq-client-java</artifactId>
@@ -45,6 +46,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        -->
 
 
         <!-- mybatis-plus 增强CRUD -->

@@ -9,7 +9,7 @@ package com.laigeoffer.pmhub.job.config;//package com.laigeoffer.pmhub.job.confi
 ///**
 // * 定时任务配置（单机部署建议删除此类和qrtz数据库表，默认走内存会最高效）
 // * 
-// * @author canghe
+// * @author chenqingtong
 // */
 //@Configuration
 //public class ScheduleConfig

@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.base.core.constant;
 /**
  * 缓存的key 常量
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class CacheConstants {
     /**

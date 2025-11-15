@@ -12,8 +12,8 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 /**
- * @author canghe
- * @date 2022-12-12 14:34
+ * @author chenqingtong
+ * @date 2024-12-12 14:34
  */
 public interface ProjectTaskMapper extends BaseMapper<ProjectTask> {
 

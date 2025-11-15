@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * 防止XSS攻击的过滤器
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class XssFilter implements Filter {
     /**

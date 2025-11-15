@@ -12,8 +12,8 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 /**
- * @author canghe
- * @date 2022-12-09 15:36
+ * @author chenqingtong
+ * @date 2024-12-09 15:36
  */
 
 @TableName("pmhub_project")

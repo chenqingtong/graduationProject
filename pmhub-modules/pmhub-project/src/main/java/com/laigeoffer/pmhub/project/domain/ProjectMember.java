@@ -10,8 +10,8 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * @author canghe
- * @date 2022-12-12 13:55
+ * @author chenqingtong
+ * @date 2024-12-12 13:55
  */
 @Data
 @TableName("pmhub_project_member")

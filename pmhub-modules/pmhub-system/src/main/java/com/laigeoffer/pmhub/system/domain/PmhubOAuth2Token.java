@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * OAuth2 用于客户端请求接口的token
- * @author canghe
+ * @author chenqingtong
  * @date 2024/01/10
  */
 @Data

@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * 流程结束全局监听
  *
- * @author canghe*/
+ * @author chenqingtong*/
 @Component
 public class GlobalProcesstCancelListener extends AbstractFlowableEngineEventListener {
 

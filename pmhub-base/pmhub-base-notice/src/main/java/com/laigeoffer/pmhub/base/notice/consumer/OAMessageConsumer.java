@@ -9,13 +9,14 @@ import com.laigeoffer.pmhub.base.notice.domain.dto.*;
 import com.laigeoffer.pmhub.base.notice.domain.entity.WxResult;
 import com.laigeoffer.pmhub.base.notice.utils.MessageUtils;
 import com.laigeoffer.pmhub.base.notice.utils.RocketMqUtils;
-import org.apache.rocketmq.client.apis.ClientConfiguration;
-import org.apache.rocketmq.client.apis.ClientException;
-import org.apache.rocketmq.client.apis.ClientServiceProvider;
-import org.apache.rocketmq.client.apis.consumer.ConsumeResult;
-import org.apache.rocketmq.client.apis.consumer.FilterExpression;
-import org.apache.rocketmq.client.apis.consumer.FilterExpressionType;
-import org.apache.rocketmq.client.apis.consumer.PushConsumer;
+// RocketMQ 相关导入已注释 - 如需使用请取消注释
+//import org.apache.rocketmq.client.apis.ClientConfiguration;
+//import org.apache.rocketmq.client.apis.ClientException;
+//import org.apache.rocketmq.client.apis.ClientServiceProvider;
+//import org.apache.rocketmq.client.apis.consumer.ConsumeResult;
+//import org.apache.rocketmq.client.apis.consumer.FilterExpression;
+//import org.apache.rocketmq.client.apis.consumer.FilterExpressionType;
+//import org.apache.rocketmq.client.apis.consumer.PushConsumer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -27,11 +28,13 @@ import java.util.Collections;
 
 /**
  * message消费者
+ * 
+ * 已禁用：RocketMQ 相关功能已移除，如需使用请重新启用
  *
- * @author canghe
+ * @author chenqingtong
  * @date 2023/07/21
  */
-@Component
+//@Component
 public class OAMessageConsumer implements CommandLineRunner {
 
 
@@ -62,12 +65,17 @@ public class OAMessageConsumer implements CommandLineRunner {
 
     /**
      * 运行注册监听器
+     * 
+     * 已禁用：RocketMQ 相关功能已移除，如需使用请取消注释
      *
      * @param args 参数
      * @throws Exception 异常
      */
     @Override
     public void run(String... args) throws Exception {
+        // RocketMQ 功能已禁用
+        LogFactory.get().warn("RocketMQ 消费者已禁用，消息监听已跳过");
+        /*
         final ClientServiceProvider provider = ClientServiceProvider.loadService();
         ClientConfiguration clientConfiguration = ClientConfiguration.newBuilder()
                 .setEndpoints(addr)
@@ -159,6 +167,7 @@ public class OAMessageConsumer implements CommandLineRunner {
         } catch (ClientException e) {
             LogFactory.get().error(e);
         }
+        */
     }
 
 }

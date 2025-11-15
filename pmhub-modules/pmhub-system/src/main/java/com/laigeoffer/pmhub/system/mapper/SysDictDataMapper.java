@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 字典表 数据层
  *
- * @author canghe
+ * @author chenqingtong
  */
 public interface SysDictDataMapper {
     /**

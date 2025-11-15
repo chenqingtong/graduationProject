@@ -1,8 +1,8 @@
 package com.laigeoffer.pmhub.base.core.enums;
 
 /**
- * @author canghe
- * @date 2022-12-15 17:04
+ * @author chenqingtong
+ * @date 2024-12-15 17:04
  */
 public enum ProjectStatusEnum {
     NO_STARTED(0, "未开始"),

@@ -12,8 +12,8 @@ import java.util.Date;
 
 /**
  * 任务工时表
- * @author canghe
- * @date 2022-12-12 14:10
+ * @author chenqingtong
+ * @date 2024-12-12 14:10
  */
 
 @Data

@@ -5,8 +5,8 @@ import lombok.Data;
 /**
  * 部署实例和表单关联视图对象
  *
- * @author canghe
- * @createTime 2022/7/17 18:29
+ * @author chenqingtong
+ * @createTime 2024/7/17 18:29
  */
 @Data
 public class WfDeployFormVo {

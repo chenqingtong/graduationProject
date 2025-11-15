@@ -8,7 +8,7 @@ import java.util.Stack;
 /**
  * 数据源切换处理
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class DynamicDataSourceContextHolder {
     public static final Logger log = LoggerFactory.getLogger(DynamicDataSourceContextHolder.class);

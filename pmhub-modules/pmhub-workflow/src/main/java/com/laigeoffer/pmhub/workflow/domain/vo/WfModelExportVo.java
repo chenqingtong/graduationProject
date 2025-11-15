@@ -11,7 +11,7 @@ import java.util.Date;
 /**
  * 流程模型对象导出VO
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Data
 @NoArgsConstructor

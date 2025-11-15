@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 /**
  * 字典 业务层处理
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Service
 public class SysDictTypeServiceImpl implements ISysDictTypeService {

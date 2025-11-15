@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 /**
  * 时间工具类
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class DateUtils extends org.apache.commons.lang3.time.DateUtils {
     private static final String[] parsePatterns = {

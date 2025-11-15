@@ -4,7 +4,7 @@ import com.laigeoffer.pmhub.workflow.enums.TaskCompletedStateEnum;
 
 /**
  * 任务状态
- * @author canghe
+ * @author chenqingtong
  */
 public class TaskCompletedStateVO {
 

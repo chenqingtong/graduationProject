@@ -13,7 +13,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 /**
  * 线程池配置
  *
- * @author canghe
+ * @author chenqingtong
  **/
 @Configuration
 public class ThreadPoolConfig {
@@ -43,10 +43,15 @@ public class ThreadPoolConfig {
 
     /**
      * 执行周期性或定时任务
+     * 注意：ScheduledThreadPoolExecutor 会在构造时立即创建核心线程（corePoolSize）
+     * 如果未使用，建议降低 corePoolSize 或使用 @ConditionalOnProperty 条件加载
      */
     @Bean(name = "scheduledExecutorService")
     protected ScheduledExecutorService scheduledExecutorService() {
-        return new ScheduledThreadPoolExecutor(corePoolSize,
+        // 优化：降低初始核心线程数，减少资源消耗（从 50 降到 5）
+        // 如果确实需要更多线程，可以在运行时动态扩展
+        int scheduleCorePoolSize = 5;
+        return new ScheduledThreadPoolExecutor(scheduleCorePoolSize,
                 new BasicThreadFactory.Builder().namingPattern("schedule-pool-%d").daemon(true).build(),
                 new ThreadPoolExecutor.CallerRunsPolicy()) {
             @Override

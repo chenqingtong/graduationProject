@@ -12,8 +12,8 @@ import javax.validation.constraints.NotNull;
 /**
  * 流程表单业务对象
  *
- * @author canghe
- * @createTime 2022/3/7 22:07
+ * @author chenqingtong
+ * @createTime 2024/3/7 22:07
  */
 @Data
 @EqualsAndHashCode(callSuper = true)

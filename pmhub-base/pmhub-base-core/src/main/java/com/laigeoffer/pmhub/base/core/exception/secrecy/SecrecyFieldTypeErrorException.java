@@ -5,7 +5,7 @@ import java.lang.reflect.Field;
 /**
  * 保密字段类型异常
  *
- * @author canghe
+ * @author chenqingtong
  * @date 2023/07/19
  */
 public class SecrecyFieldTypeErrorException extends RuntimeException {

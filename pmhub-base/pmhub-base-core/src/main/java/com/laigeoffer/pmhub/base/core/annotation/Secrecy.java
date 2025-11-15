@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * 当对象中定义了有 @SecrecyMap 修饰的Map<String,String> 字段时，会自动将被 @Secrecy 修饰的字段值的密文放入到此map中
  * 可调用系统解密接口传入此密文进行解密
  *
- * @author canghe
+ * @author chenqingtong
  * @date 2023/07/17
  */
 @Target(ElementType.FIELD)

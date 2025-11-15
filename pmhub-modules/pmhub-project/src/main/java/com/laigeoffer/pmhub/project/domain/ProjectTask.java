@@ -1,8 +1,8 @@
 package com.laigeoffer.pmhub.project.domain;
 
 /**
- * @author canghe
- * @date 2022-12-12 14:06
+ * @author chenqingtong
+ * @date 2024-12-12 14:06
  */
 
 import com.baomidou.mybatisplus.annotation.IdType;
@@ -19,8 +19,8 @@ import java.util.Date;
 
 /**
  * 项目-任务表
- * @author canghe
- * @date 2022-12-12 13:57
+ * @author chenqingtong
+ * @date 2024-12-12 13:57
  */
 @Data
 @TableName("pmhub_project_task")

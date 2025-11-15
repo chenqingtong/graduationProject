@@ -4,7 +4,7 @@ import cn.hutool.core.util.URLUtil;
 
 /**
  * 企微单点登录地址创建
- * @author canghe
+ * @author chenqingtong
  */
 public class SsoUrlUtils {
 

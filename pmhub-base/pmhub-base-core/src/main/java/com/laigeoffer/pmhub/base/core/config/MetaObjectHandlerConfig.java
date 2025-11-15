@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @description MetaObjectHandlerConfig
  * @create 2023-11-29-15:12
  */

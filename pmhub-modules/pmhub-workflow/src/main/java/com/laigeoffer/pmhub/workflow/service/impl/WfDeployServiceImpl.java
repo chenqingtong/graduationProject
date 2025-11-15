@@ -23,7 +23,6 @@ import com.laigeoffer.pmhub.base.core.core.domain.dto.ApprovalSetDTO;
 import com.laigeoffer.pmhub.workflow.domain.dto.MaterialsApprovalSetDTO;
 import com.laigeoffer.pmhub.workflow.domain.vo.MaterialsApprovalSetVO;
 import com.laigeoffer.pmhub.workflow.domain.vo.WfDeployVo;
-import com.laigeoffer.pmhub.workflow.factory.FlowServiceFactory;
 import com.laigeoffer.pmhub.workflow.mapper.WfApprovalSetMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfDeployFormMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfMaterialsScrappedProcessMapper;
@@ -39,6 +38,7 @@ import org.flowable.engine.repository.Deployment;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.repository.ProcessDefinitionQuery;
 import org.flowable.engine.task.Comment;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,15 +47,22 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * @author canghe
- * @createTime 2022/6/30 9:04
+ * @author chenqingtong
+ * @createTime 2024/6/30 9:04
  */
 @RequiredArgsConstructor
 @Service
 @Slf4j
-public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeployService {
+public class WfDeployServiceImpl implements IWfDeployService {
 
-    private final RepositoryService repositoryService;
+    @Autowired(required = false)
+    private RepositoryService repositoryService;
+    
+    @Autowired(required = false)
+    private org.flowable.engine.HistoryService historyService;
+    
+    @Autowired(required = false)
+    private org.flowable.engine.TaskService taskService;
     private final WfDeployFormMapper deployFormMapper;
     private final WfApprovalSetMapper wfApprovalSetMapper;
     private final WfMaterialsScrappedProcessMapper wfMaterialsScrappedProcessMapper;
@@ -63,6 +70,9 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
 
     @Override
     public Table2DataInfo<WfDeployVo> queryPageList(ProcessQuery processQuery, PageQuery pageQuery) {
+        if (repositoryService == null) {
+            throw new ServiceException("Flowable 服务未启用，无法查询流程定义列表");
+        }
         // 流程定义列表数据查询
         ProcessDefinitionQuery processDefinitionQuery = repositoryService.createProcessDefinitionQuery()
                 .latestVersion()
@@ -103,6 +113,9 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
 
     @Override
     public Table2DataInfo<WfDeployVo> queryPublishList(String processKey, PageQuery pageQuery) {
+        if (repositoryService == null) {
+            throw new ServiceException("Flowable 服务未启用，无法查询发布列表");
+        }
         // 创建查询条件
         ProcessDefinitionQuery processDefinitionQuery = repositoryService.createProcessDefinitionQuery()
                 .processDefinitionKey(processKey)
@@ -141,6 +154,9 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
      */
     @Override
     public void updateState(String definitionId, String state) {
+        if (repositoryService == null) {
+            throw new ServiceException("Flowable 服务未启用，无法更新流程状态");
+        }
         if (SuspensionState.ACTIVE.toString().equals(state)) {
             // 激活
             repositoryService.activateProcessDefinitionById(definitionId, true, null);
@@ -152,6 +168,9 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
 
     @Override
     public String queryBpmnXmlById(String definitionId) {
+        if (repositoryService == null) {
+            throw new ServiceException("Flowable 服务未启用，无法查询 BPMN XML");
+        }
         InputStream inputStream = repositoryService.getProcessModel(definitionId);
         try {
             return IoUtil.readUtf8(inputStream);
@@ -163,6 +182,9 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteByIds(List<String> deployIds) {
+        if (repositoryService == null) {
+            throw new ServiceException("Flowable 服务未启用，无法删除部署");
+        }
         for (String deployId : deployIds) {
             repositoryService.deleteDeployment(deployId, true);
             deployFormMapper.delete(new LambdaQueryWrapper<WfDeployForm>().eq(WfDeployForm::getDeployId, deployId));
@@ -333,18 +355,23 @@ public class WfDeployServiceImpl extends FlowServiceFactory implements IWfDeploy
                         SecurityConstants.INNER);
                 WfTaskProcess pt = queryResult != null ? queryResult.getData() : null;
                 if (pt != null && StringUtils.isNotBlank(pt.getInstanceId())) {
-                    // 根据 instanceId 查询流程的状态是不是已拒绝
-                    HistoricProcessInstance historicProcessInstance = historyService.createHistoricProcessInstanceQuery().processInstanceId(pt.getInstanceId()).singleResult();
-                    if (historicProcessInstance != null) {
-                        if (StringUtils.isBlank(historicProcessInstance.getEndActivityId())) {
-                            // 审批中的流程不允许修改审批设置
-                            throw new ServiceException("审批中的流程不允许修改审批设置");
-                        } else {
-                            List<Comment> list = taskService.getProcessInstanceComments(pt.getInstanceId());
-                            list.sort(Comparator.comparing(Comment::getTime).reversed());
-                            // 已通过的流程不允许修改审批设置
-                            if ("1".equals(list.get(0).getType())) {
-                                throw new ServiceException("已通过的流程不允许修改审批设置");
+                    // 如果 Flowable 服务未启用，跳过流程状态检查
+                    if (historyService == null || taskService == null) {
+                        log.warn("Flowable 服务未启用，跳过流程状态检查");
+                    } else {
+                        // 根据 instanceId 查询流程的状态是不是已拒绝
+                        HistoricProcessInstance historicProcessInstance = historyService.createHistoricProcessInstanceQuery().processInstanceId(pt.getInstanceId()).singleResult();
+                        if (historicProcessInstance != null) {
+                            if (StringUtils.isBlank(historicProcessInstance.getEndActivityId())) {
+                                // 审批中的流程不允许修改审批设置
+                                throw new ServiceException("审批中的流程不允许修改审批设置");
+                            } else {
+                                List<Comment> list = taskService.getProcessInstanceComments(pt.getInstanceId());
+                                list.sort(Comparator.comparing(Comment::getTime).reversed());
+                                // 已通过的流程不允许修改审批设置
+                                if ("1".equals(list.get(0).getType())) {
+                                    throw new ServiceException("已通过的流程不允许修改审批设置");
+                                }
                             }
                         }
                     }

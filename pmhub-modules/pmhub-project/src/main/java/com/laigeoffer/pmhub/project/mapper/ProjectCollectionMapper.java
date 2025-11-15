@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.laigeoffer.pmhub.project.domain.ProjectCollection;
 
 /**
- * @author canghe
- * @date 2022-12-12 14:28
+ * @author chenqingtong
+ * @date 2024-12-12 14:28
  */
 public interface ProjectCollectionMapper extends BaseMapper<ProjectCollection> {
 }

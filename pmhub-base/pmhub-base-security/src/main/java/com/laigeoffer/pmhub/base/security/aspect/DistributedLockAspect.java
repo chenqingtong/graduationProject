@@ -25,7 +25,7 @@ import java.lang.reflect.Method;
 import java.util.Objects;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @description DistributedLockAspect
  * @create 2024-06-17-10:20
  */

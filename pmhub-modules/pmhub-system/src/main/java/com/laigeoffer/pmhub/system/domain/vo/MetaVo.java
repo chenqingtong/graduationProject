@@ -6,7 +6,7 @@ import com.laigeoffer.pmhub.base.core.utils.StringUtils;
 /**
  * 路由显示信息
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class MetaVo {
     /**

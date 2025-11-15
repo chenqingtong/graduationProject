@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 参数配置 服务层
  *
- * @author canghe
+ * @author chenqingtong
  */
 public interface ISysConfigService {
     /**

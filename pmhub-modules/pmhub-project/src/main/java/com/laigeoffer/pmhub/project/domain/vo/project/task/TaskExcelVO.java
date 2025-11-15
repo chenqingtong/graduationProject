@@ -4,8 +4,8 @@ package com.laigeoffer.pmhub.project.domain.vo.project.task;
 import com.laigeoffer.pmhub.base.core.annotation.Excel;
 
 /**
- * @author canghe
- * @date 2022-12-26 14:58
+ * @author chenqingtong
+ * @date 2024-12-26 14:58
  */
 public class TaskExcelVO {
     @Excel(name = "项目编码(必填)")

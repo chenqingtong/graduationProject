@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 /**
  * 自定义导出Excel数据注解
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)

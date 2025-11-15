@@ -10,8 +10,8 @@ import org.flowable.common.engine.impl.util.io.StringStreamSource;
 import java.util.*;
 
 /**
- * @author canghe
- * @createTime 2022/3/26 19:04
+ * @author chenqingtong
+ * @createTime 2024/3/26 19:04
  */
 public class ModelUtils {
 

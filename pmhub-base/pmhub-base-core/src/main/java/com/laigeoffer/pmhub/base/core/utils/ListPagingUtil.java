@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.base.core.utils;
 import java.util.List;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @date 2023-07-13 17:22
  */
 public class ListPagingUtil {

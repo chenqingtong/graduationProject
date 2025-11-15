@@ -23,7 +23,7 @@ import java.util.Set;
 /**
  * Token 权限验证，逻辑实现类
  * 
- * @author canghe
+ * @author chenqingtong
  */
 public class AuthLogic
 {

@@ -6,7 +6,7 @@ import com.laigeoffer.pmhub.base.core.utils.Arith;
 /**
  * 內存相关信息
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class Mem {
     /**

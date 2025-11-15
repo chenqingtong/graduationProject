@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.workflow.common.enums;
 /**
  * 流程意见类型
  *
- * @author canghe
+ * @author chenqingtong
  * @date 2021/4/19
  */
 public enum FlowComment {

@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 /**
  * 登录校验方法
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Component
 public class SysLoginService {

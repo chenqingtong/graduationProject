@@ -5,7 +5,7 @@ import lombok.Data;
 /**
  * 整体卡片的点击跳转事件，text_notice必填本字段
  * TODO: 2023/2/27 此类的变量名为匹配微信接口使用按下划命名，后期安排优化
- * @author canghe
+ * @author chenqingtong
  */
 @Data
 public class CardActionDTO {

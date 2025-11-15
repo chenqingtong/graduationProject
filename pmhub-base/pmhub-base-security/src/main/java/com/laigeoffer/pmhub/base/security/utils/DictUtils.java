@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * 字典工具类
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class DictUtils {
     private static final Logger log = LoggerFactory.getLogger(DictUtils.class);

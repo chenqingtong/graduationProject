@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @date 2023-04-04 09:11
  */
 @Data

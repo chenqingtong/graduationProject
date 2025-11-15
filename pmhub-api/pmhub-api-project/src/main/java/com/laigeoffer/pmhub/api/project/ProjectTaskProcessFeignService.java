@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * 项目任务流程 Feign 服务
  *
- * @author canghe
+ * @author chenqingtong
  */
 @FeignClient(contextId = "projectTaskProcessFeignService", value = ServiceNameConstants.PROJECT_SERVICE, fallbackFactory = ProjectTaskProcessFeignFallbackFactory.class)
 public interface ProjectTaskProcessFeignService {

@@ -11,7 +11,7 @@ import javax.annotation.Resource;
 import java.util.concurrent.TimeUnit;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @description RedissonDistributedLock 分布式锁实现类
  * @create 2024-06-17-10:31
  */

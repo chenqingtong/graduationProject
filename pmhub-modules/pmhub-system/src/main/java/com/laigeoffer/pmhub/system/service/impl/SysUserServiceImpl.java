@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 /**
  * 用户 业务层处理
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Service
 public class SysUserServiceImpl implements ISysUserService {

@@ -14,8 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Date;
 
 /**
- * @author canghe
- * @date 2022-12-15 16:35
+ * @author chenqingtong
+ * @date 2024-12-15 16:35
  */
 @Service
 public class ProjectCollectionServiceImpl extends ServiceImpl<ProjectCollectionMapper, ProjectCollection> implements ProjectCollectionService {

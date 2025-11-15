@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * 流程监听和微信通知相关服务
- * @author canghe
+ * @author chenqingtong
  */
 @Service
 public class ListenerServiceImpl implements IListenerService {

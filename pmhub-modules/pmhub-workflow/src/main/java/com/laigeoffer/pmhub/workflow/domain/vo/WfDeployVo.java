@@ -11,8 +11,8 @@ import java.util.Date;
 /**
  * 流程部署视图对象
  *
- * @author canghe
- * @date 2022-06-30
+ * @author chenqingtong
+ * @date 2024-06-30
  */
 @Data
 @ExcelIgnoreUnannotated

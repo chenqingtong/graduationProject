@@ -22,7 +22,7 @@ import java.util.Objects;
  * 对接 OA 模块可直接使用
  * 有需要帮助请联系公众号：苍何
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Slf4j
 public class OAUtils {

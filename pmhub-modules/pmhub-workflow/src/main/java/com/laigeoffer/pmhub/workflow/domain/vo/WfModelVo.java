@@ -8,8 +8,8 @@ import java.util.Date;
 /**
  * 流程模型视图对象
  *
- * @author canghe
- * @createTime 2022/6/21 9:16
+ * @author chenqingtong
+ * @createTime 2024/6/21 9:16
  */
 @Data
 public class WfModelVo {

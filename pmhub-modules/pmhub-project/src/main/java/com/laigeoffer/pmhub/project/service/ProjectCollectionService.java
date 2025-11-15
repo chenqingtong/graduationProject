@@ -5,8 +5,8 @@ import com.laigeoffer.pmhub.project.domain.vo.project.ProjectVO;
 import com.laigeoffer.pmhub.project.domain.ProjectCollection;
 
 /**
- * @author canghe
- * @date 2022-12-15 16:34
+ * @author chenqingtong
+ * @date 2024-12-15 16:34
  */
 public interface ProjectCollectionService extends IService<ProjectCollection> {
 

@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @author canghe
- * @createTime 2022/3/10 00:12
+ * @author chenqingtong
+ * @createTime 2024/3/10 00:12
  */
 public interface IWfTaskService {
 

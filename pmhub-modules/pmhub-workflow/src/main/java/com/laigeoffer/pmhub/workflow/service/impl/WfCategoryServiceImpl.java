@@ -18,7 +18,7 @@ import com.laigeoffer.pmhub.workflow.service.IWfCategoryService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.flowable.engine.repository.ModelQuery;
-import org.springframework.stereotype.Service;
+// import org.springframework.stereotype.Service;  // 已注释，未使用
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,11 +29,11 @@ import java.util.stream.Collectors;
 /**
  * 流程分类Service业务层处理
  *
- * @author canghe
- * @date 2022-01-15
+ * @author chenqingtong
+ * @date 2024-01-15
  */
 @RequiredArgsConstructor
-@Service
+// @Service  // 已注释：由于已禁用 Flowable 自动配置，避免启动时注入 Flowable 服务失败
 public class WfCategoryServiceImpl extends FlowServiceFactory implements IWfCategoryService {
 
     private final WfCategoryMapper baseMapper;

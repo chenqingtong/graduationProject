@@ -10,8 +10,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * @author canghe
- * @createTime 2022/6/21 9:11
+ * @author chenqingtong
+ * @createTime 2024/6/21 9:11
  */
 public interface IWfModelService {
 

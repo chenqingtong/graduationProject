@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.workflow.domain.vo;
 import lombok.Data;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @date 2023-04-23 13:55
  */
 @Data

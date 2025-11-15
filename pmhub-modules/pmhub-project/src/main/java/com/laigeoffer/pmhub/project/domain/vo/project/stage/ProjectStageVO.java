@@ -1,8 +1,8 @@
 package com.laigeoffer.pmhub.project.domain.vo.project.stage;
 
 /**
- * @author canghe
- * @date 2022-12-19 16:42
+ * @author chenqingtong
+ * @date 2024-12-19 16:42
  */
 public class ProjectStageVO {
     /**

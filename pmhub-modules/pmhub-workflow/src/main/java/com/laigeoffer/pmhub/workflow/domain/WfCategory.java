@@ -11,8 +11,8 @@ import java.util.Date;
 /**
  * 流程分类对象 wf_category
  *
- * @author canghe
- * @date 2022-01-15
+ * @author chenqingtong
+ * @date 2024-01-15
  */
 @Data
 @TableName("pmhub_wf_category")

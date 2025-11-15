@@ -11,8 +11,8 @@ import java.util.Date;
 /**
  * 流程抄送对象 wf_copy
  *
- * @author canghe
- * @date 2022-05-19
+ * @author chenqingtong
+ * @date 2024-05-19
  */
 @Data
 @TableName("pmhub_wf_copy")

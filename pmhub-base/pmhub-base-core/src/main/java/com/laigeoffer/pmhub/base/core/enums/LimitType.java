@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.base.core.enums;
 /**
  * 限流类型
  *
- * @author canghe
+ * @author chenqingtong
  */
 
 public enum LimitType {

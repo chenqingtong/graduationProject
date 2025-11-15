@@ -6,8 +6,8 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 /**
- * @author canghe
- * @date 2022-12-15 16:50
+ * @author chenqingtong
+ * @date 2024-12-15 16:50
  */
 
 public class ProjectDetailResVO {

@@ -5,8 +5,8 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import java.util.Date;
 
 /**
- * @author canghe
- * @date 2022-12-13 09:39
+ * @author chenqingtong
+ * @date 2024-12-13 09:39
  */
 
 public class ProjectMemberResVO {

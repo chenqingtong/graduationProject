@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.laigeoffer.pmhub.workflow.domain.WfMaterialsScrappedProcess;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @date 2023-06-28 09:24
  */
 

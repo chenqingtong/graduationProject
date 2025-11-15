@@ -7,7 +7,7 @@ import com.laigeoffer.pmhub.base.core.annotation.Excel;
 /**
  * 用户对象 sys_user
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class SysUserVO extends SysUser {
 

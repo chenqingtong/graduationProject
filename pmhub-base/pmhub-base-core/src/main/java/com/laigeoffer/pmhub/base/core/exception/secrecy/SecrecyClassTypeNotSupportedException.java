@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.base.core.exception.secrecy;
 /**
  * 不支持的的保密类
  *
- * @author canghe
+ * @author chenqingtong
  * @date 2023/07/19
  */
 public class SecrecyClassTypeNotSupportedException extends RuntimeException {

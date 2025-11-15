@@ -3,8 +3,8 @@ package com.laigeoffer.pmhub.workflow.domain.dto;
 import lombok.Data;
 
 /**
- * @author canghe
- * @createTime 2022/6/21 9:16
+ * @author chenqingtong
+ * @createTime 2024/6/21 9:16
  */
 @Data
 public class WfMetaInfoDto {

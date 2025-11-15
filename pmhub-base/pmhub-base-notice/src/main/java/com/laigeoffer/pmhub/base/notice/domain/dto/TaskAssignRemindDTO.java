@@ -12,7 +12,7 @@ import lombok.EqualsAndHashCode;
 /**
  * 任务指派提醒
  *
- * @author canghe
+ * @author chenqingtong
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({

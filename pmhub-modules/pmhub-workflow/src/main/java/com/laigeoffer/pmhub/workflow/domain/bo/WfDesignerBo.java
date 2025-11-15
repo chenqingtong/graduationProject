@@ -10,8 +10,8 @@ import javax.validation.constraints.NotNull;
 /**
  * 流程设计业务对象
  *
- * @author canghe
- * @createTime 2022/3/10 00:12
+ * @author chenqingtong
+ * @createTime 2024/3/10 00:12
  */
 @Data
 public class WfDesignerBo {

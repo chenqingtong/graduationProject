@@ -8,8 +8,8 @@ import com.laigeoffer.pmhub.project.domain.vo.project.stage.ProjectStageVO;
 import java.util.List;
 
 /**
- * @author canghe
- * @date 2022-12-19 16:37
+ * @author chenqingtong
+ * @date 2024-12-19 16:37
  */
 public interface ProjectStageService extends IService<ProjectStage> {
     List<ProjectStageVO> list(ProjectVO projectVO);

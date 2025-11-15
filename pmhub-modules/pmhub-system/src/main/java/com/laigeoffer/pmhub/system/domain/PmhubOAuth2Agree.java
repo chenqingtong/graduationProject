@@ -5,7 +5,7 @@ import lombok.Data;
 
 /**
  * OAuth2 用户已统一登陆客户端
- * @author canghe
+ * @author chenqingtong
  * @date 2024/01/08
  */
 @Data

@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 创建任务结束事件
- * @author canghe
+ * @author chenqingtong
  */
 @Component
 public class GlobalTaskCompletedListener extends AbstractFlowableEngineEventListener {

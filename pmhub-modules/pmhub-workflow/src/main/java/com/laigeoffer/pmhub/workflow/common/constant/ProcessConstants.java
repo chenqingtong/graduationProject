@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.workflow.common.constant;
 /**
  * 流程常量信息
  *
- * @author canghe
+ * @author chenqingtong
  * @date 2021/4/17 22:46
  */
 public class ProcessConstants {

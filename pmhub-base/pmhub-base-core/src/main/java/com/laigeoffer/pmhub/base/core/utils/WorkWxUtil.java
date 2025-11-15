@@ -12,7 +12,7 @@
 //
 ///**
 // * 企业微信工具类
-// * @author canghe
+// * @author chenqingtong
 // */
 //@Component
 //public class WorkWxUtil {

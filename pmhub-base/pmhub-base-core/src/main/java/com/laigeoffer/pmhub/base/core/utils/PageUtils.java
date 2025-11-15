@@ -8,7 +8,7 @@ import com.laigeoffer.pmhub.base.core.utils.sql.SqlUtil;
 /**
  * 分页工具类
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class PageUtils extends PageHelper {
     /**

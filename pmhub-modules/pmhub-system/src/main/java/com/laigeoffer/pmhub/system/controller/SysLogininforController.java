@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * 系统访问记录
  *
- * @author canghe
+ * @author chenqingtong
  */
 @RestController
 @RequestMapping("/system/monitor/logininfor")

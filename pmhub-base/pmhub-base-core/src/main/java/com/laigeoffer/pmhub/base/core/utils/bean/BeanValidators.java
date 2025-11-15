@@ -8,7 +8,7 @@ import java.util.Set;
 /**
  * bean对象属性验证
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class BeanValidators {
     public static void validateWithException(Validator validator, Object object, Class<?>... groups)

@@ -10,8 +10,8 @@ import java.util.Set;
 /**
  * 任务追踪视图对象
  *
- * @author canghe
- * @createTime 2022/1/8 19:42
+ * @author chenqingtong
+ * @createTime 2024/1/8 19:42
  */
 @Data
 @NoArgsConstructor

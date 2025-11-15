@@ -11,8 +11,8 @@ import java.util.Date;
 /**
  * 流程表单对象 wf_form
  *
- * @author canghe
- * @createTime 2022/3/7 22:07
+ * @author chenqingtong
+ * @createTime 2024/3/7 22:07
  */
 @Data
 @TableName("pmhub_wf_form")

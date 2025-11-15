@@ -9,8 +9,8 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 /**
- * @author canghe
- * @date 2022-12-12 14:29
+ * @author chenqingtong
+ * @date 2024-12-12 14:29
  */
 public interface ProjectMemberMapper extends BaseMapper<ProjectMember> {
 

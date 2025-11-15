@@ -1,7 +1,7 @@
 package com.laigeoffer.pmhub.project.service.task;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @date 2023-01-09 16:24
  */
 public enum QueryLogEnum {

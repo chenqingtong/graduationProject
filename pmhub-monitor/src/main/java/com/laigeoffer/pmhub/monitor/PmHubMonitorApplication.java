@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @description 监控中心
  * @create 2024-05-16-16:22
  */

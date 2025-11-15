@@ -23,7 +23,7 @@ import java.util.Map;
 
 /**
  * 创建任务开始（任务节点发生变动）事件
- * @author canghe
+ * @author chenqingtong
  */
 @Component
 public class GlobalTaskAssigneeListener extends AbstractFlowableEngineEventListener {

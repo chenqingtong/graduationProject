@@ -5,7 +5,7 @@ import com.laigeoffer.pmhub.base.core.core.domain.entity.SysUser;
 import java.util.Set;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @description 权限信息-服务层
  * @create 2024-04-24-22:13
  */

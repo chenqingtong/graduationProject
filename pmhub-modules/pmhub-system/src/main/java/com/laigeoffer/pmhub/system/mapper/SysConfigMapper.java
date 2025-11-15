@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 参数配置 数据层
  *
- * @author canghe
+ * @author chenqingtong
  */
 public interface SysConfigMapper {
     /**

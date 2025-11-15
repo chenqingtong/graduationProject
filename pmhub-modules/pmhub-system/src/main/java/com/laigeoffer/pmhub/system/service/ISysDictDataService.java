@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 字典 业务层
  *
- * @author canghe
+ * @author chenqingtong
  */
 public interface ISysDictDataService {
     /**

@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @date 2023-01-09 09:37
  */
 @Service("uploadCoverFileExecutor")

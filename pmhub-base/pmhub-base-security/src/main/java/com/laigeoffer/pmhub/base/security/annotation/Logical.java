@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.base.security.annotation;
 /**
  * 权限注解的验证模式
  * 
- * @author canghe
+ * @author chenqingtong
  *
  */
 public enum Logical

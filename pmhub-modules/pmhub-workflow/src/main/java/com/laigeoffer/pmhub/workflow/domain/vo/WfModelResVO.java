@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import java.util.Date;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @date 2023-03-06 15:18
  */
 public class WfModelResVO {

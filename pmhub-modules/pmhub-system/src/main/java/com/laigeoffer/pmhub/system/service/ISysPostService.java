@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 岗位信息 服务层
  *
- * @author canghe
+ * @author chenqingtong
  */
 public interface ISysPostService {
     /**

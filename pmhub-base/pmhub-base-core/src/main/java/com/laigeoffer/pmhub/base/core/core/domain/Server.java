@@ -21,7 +21,7 @@ import java.util.Properties;
 /**
  * 服务器相关信息
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class Server {
     private static final int OSHI_WAIT_SECOND = 1000;

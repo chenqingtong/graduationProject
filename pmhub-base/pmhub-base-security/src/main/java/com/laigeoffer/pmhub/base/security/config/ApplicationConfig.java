@@ -8,7 +8,7 @@ import java.util.TimeZone;
 /**
  * 程序注解配置
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class ApplicationConfig {
     /**

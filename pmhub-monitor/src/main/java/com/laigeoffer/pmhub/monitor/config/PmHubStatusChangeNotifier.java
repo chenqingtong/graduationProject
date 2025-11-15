@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @description 通知发送配置
  * @create 2024-05-16-17:32
  */

@@ -4,7 +4,7 @@ import com.laigeoffer.pmhub.base.core.utils.StringUtils;
 /**
  * 转义和反转义工具类
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class EscapeUtil {
     public static final String RE_HTML_MARK = "(<[^<]*?>)|(<[\\s]*?/[^<]*?>)|(<[^<]*?/[\\s]*?>)";

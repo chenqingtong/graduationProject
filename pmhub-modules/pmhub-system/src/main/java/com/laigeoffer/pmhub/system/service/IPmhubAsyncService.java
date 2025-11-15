@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 异步任务管理 服务层
  *
- * @author canghe
+ * @author chenqingtong
  */
 public interface IPmhubAsyncService {
 

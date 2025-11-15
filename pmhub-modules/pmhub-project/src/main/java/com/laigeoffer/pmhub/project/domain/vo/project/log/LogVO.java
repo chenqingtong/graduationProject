@@ -3,8 +3,8 @@ package com.laigeoffer.pmhub.project.domain.vo.project.log;
 import java.util.Date;
 
 /**
- * @author canghe
- * @date 2022-12-21 13:34
+ * @author chenqingtong
+ * @date 2024-12-21 13:34
  */
 public class LogVO {
     /**

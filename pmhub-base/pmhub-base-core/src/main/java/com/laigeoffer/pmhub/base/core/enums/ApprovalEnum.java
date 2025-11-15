@@ -1,8 +1,8 @@
 package com.laigeoffer.pmhub.base.core.enums;
 
 /**
- * @author canghe
- * @date 2022-12-14 17:09
+ * @author chenqingtong
+ * @date 2024-12-14 17:09
  */
 public enum ApprovalEnum {
     NO_STARTED("未审核", "0"),

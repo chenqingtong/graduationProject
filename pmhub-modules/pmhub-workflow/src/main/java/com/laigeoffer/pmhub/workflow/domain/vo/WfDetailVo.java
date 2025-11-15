@@ -9,8 +9,8 @@ import java.util.List;
 /**
  * 流程详情视图对象
  *
- * @author canghe
- * @createTime 2022/8/7 15:01
+ * @author chenqingtong
+ * @createTime 2024/8/7 15:01
  */
 @Data
 public class WfDetailVo {

@@ -2,8 +2,8 @@ package com.laigeoffer.pmhub.project.domain.vo.project.log;
 
 
 /**
- * @author canghe
- * @date 2022-12-22 15:11
+ * @author chenqingtong
+ * @date 2024-12-22 15:11
  */
 
 public class LogContentVO {

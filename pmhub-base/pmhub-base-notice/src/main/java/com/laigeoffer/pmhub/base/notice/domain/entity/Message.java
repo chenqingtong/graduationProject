@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * 消息
- * @author canghe
+ * @author chenqingtong
  */
 @Data
 public class Message {

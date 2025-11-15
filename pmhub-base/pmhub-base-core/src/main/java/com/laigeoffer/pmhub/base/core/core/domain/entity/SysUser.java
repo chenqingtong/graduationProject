@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * 用户对象 sys_user
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class SysUser extends BaseEntity {
     private static final long serialVersionUID = 1L;

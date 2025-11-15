@@ -4,8 +4,8 @@ package com.laigeoffer.pmhub.project.domain.vo.project;
 import java.math.BigDecimal;
 
 /**
- * @author canghe
- * @date 2022-12-16 15:57
+ * @author chenqingtong
+ * @date 2024-12-16 15:57
  */
 
 /**

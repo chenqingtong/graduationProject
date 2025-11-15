@@ -6,15 +6,18 @@ import org.flowable.common.engine.api.delegate.event.FlowableEventDispatcher;
 import org.flowable.spring.SpringProcessEngineConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
-import org.springframework.context.annotation.Configuration;
+// import org.springframework.context.annotation.Configuration;  // 已注释，未使用
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ContextRefreshedEvent;
 
 
 /**
- * @author canghe
+ * @author chenqingtong
+ * 
+ * 注意：由于已禁用 Flowable 自动配置，此配置类已注释
+ * 如果后续需要使用 Flowable，请取消注释并确保数据库表存在
  */
-@Configuration
+// @Configuration
 public class FlowableListenerConfig implements ApplicationListener<ContextRefreshedEvent> {
 
     @Autowired

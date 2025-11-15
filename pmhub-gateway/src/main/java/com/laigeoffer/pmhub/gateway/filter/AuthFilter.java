@@ -28,7 +28,7 @@ import java.util.Map;
 /**
  * 网关鉴权
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Component
 public class AuthFilter implements GlobalFilter, Ordered {

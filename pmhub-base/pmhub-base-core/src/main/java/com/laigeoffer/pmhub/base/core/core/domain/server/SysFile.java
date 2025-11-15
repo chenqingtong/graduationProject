@@ -3,7 +3,7 @@ package com.laigeoffer.pmhub.base.core.core.domain.server;
 /**
  * 系统文件相关信息
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class SysFile {
     /**

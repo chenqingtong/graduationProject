@@ -23,7 +23,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * @author canghe
+ * @author chenqingtong
  * @date 2023-01-09 16:28
  */
 @Service("queryAllLogExecutor")

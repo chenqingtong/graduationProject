@@ -24,7 +24,7 @@ import static com.laigeoffer.pmhub.base.core.core.domain.AjaxResult.success;
 /**
  * 登录验证
  *
- * @author canghe
+ * @author chenqingtong
  */
 @RestController
 public class LoginController {

@@ -8,7 +8,7 @@ import java.io.Serializable;
 /**
  * 角色
  *
- * @author canghe
+ * @author chenqingtong
  */
 
 @Data

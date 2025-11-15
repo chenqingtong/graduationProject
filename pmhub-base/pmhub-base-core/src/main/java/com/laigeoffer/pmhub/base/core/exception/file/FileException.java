@@ -6,7 +6,7 @@ import com.laigeoffer.pmhub.base.core.exception.base.BaseException;
 /**
  * 文件信息异常类
  *
- * @author canghe
+ * @author chenqingtong
  */
 public class FileException extends BaseException {
     private static final long serialVersionUID = 1L;

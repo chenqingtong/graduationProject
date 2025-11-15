@@ -15,7 +15,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * 通用配置
  *
- * @author canghe
+ * @author chenqingtong
  */
 @Configuration
 @ConditionalOnClass(WebMvcConfigurer.class)

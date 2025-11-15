@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * 菜单信息
  *
- * @author canghe
+ * @author chenqingtong
  */
 @RestController
 @RequestMapping("/system/menu")

@@ -52,8 +52,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * @author canghe
- * @createTime 2022/6/21 9:11
+ * @author chenqingtong
+ * @createTime 2024/6/21 9:11
  */
 @RequiredArgsConstructor
 @Service
@@ -67,8 +67,18 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
     private final WfApprovalSetMapper wfApprovalSetMapper;
     private final ProjectTaskProcessFeignService projectTaskProcessFeignService;
 
+    /**
+     * 检查 Flowable 服务是否可用
+     */
+    private void checkFlowableService() {
+        if (repositoryService == null) {
+            throw new ServiceException("Flowable 服务未启用，无法执行此操作");
+        }
+    }
+
     @Override
     public Table2DataInfo<WfModelVo> list(WfModelBo modelBo, PageQuery pageQuery) {
+        checkFlowableService();
         ModelQuery modelQuery = repositoryService.createModelQuery().latestVersion().orderByCreateTime().desc();
         // 构建查询条件
         if (StringUtils.isNotBlank(modelBo.getModelKey())) {
@@ -124,6 +134,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
 
     @Override
     public List<WfModelVo> list(WfModelBo modelBo) {
+        checkFlowableService();
         ModelQuery modelQuery = repositoryService.createModelQuery().latestVersion().orderByCreateTime().desc();
         // 构建查询条件
         if (StringUtils.isNotBlank(modelBo.getModelKey())) {
@@ -158,6 +169,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
 
     @Override
     public Table2DataInfo<WfModelVo> historyList(WfModelBo modelBo, PageQuery pageQuery) {
+        checkFlowableService();
         ModelQuery modelQuery = repositoryService.createModelQuery()
             .modelKey(modelBo.getModelKey())
             .orderByModelVersion()
@@ -195,6 +207,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
 
     @Override
     public WfModelVo getModel(String modelId) {
+        checkFlowableService();
         // 获取流程模型
         Model model = repositoryService.getModel(modelId);
         if (ObjectUtil.isNull(model)) {
@@ -225,6 +238,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
 
     @Override
     public String queryBpmnXmlById(String modelId) {
+        checkFlowableService();
         byte[] bpmnBytes = repositoryService.getModelEditorSource(modelId);
         return StrUtil.utf8Str(bpmnBytes);
     }
@@ -232,6 +246,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public WfModelResVO insertModel(WfModelBo modelBo) {
+        checkFlowableService();
         Model model = repositoryService.newModel();
         model.setName(modelBo.getModelName());
         model.setKey(modelBo.getModelKey());
@@ -290,6 +305,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
 
     @Override
     public void updateModel(WfModelBo modelBo) {
+        checkFlowableService();
         // 根据模型Key查询模型信息
         Model model = repositoryService.getModel(modelBo.getModelId());
         if (ObjectUtil.isNull(model)) {
@@ -306,6 +322,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void saveModel(WfModelBo modelBo) {
+        checkFlowableService();
         // 查询模型信息
         Model model = repositoryService.getModel(modelBo.getModelId());
         if (ObjectUtil.isNull(model)) {
@@ -349,6 +366,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void latestModel(String modelId) {
+        checkFlowableService();
         // 获取流程模型
         Model model = repositoryService.getModel(modelId);
         if (ObjectUtil.isNull(model)) {
@@ -378,6 +396,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteByIds(Collection<String> ids) {
+        checkFlowableService();
         List<String> errorIds = new ArrayList<>(10);
         ids.forEach(id -> {
             Model model = repositoryService.getModel(id);
@@ -399,6 +418,7 @@ public class WfModelServiceImpl extends FlowServiceFactory implements IWfModelSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deployModel(String modelId) {
+        checkFlowableService();
         // 获取流程模型
         Model model = repositoryService.getModel(modelId);
         if (ObjectUtil.isNull(model)) {

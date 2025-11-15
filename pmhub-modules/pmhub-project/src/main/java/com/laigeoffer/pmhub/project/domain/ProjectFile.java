@@ -12,8 +12,8 @@ import java.util.Date;
 
 /**
  * 项目或任务附件表
- * @author canghe
- * @date 2022-12-12 13:49
+ * @author chenqingtong
+ * @date 2024-12-12 13:49
  */
 @Data
 @TableName("pmhub_project_file")
