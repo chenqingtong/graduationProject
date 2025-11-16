@@ -119,7 +119,6 @@
 
 <script>
 import { listTodoProcess } from '@/api/workflow/process';
-import { complete, delegate, transfer, rejectTask, returnList, returnTask } from "@/api/workflow/task"
 
 export default {
   name: "Todo",
@@ -267,28 +266,8 @@ export default {
           return;
         }
       } else {
-        // Flowable流程任务：跳转到流程详情页
-        if (!row.procInsId) {
-          this.$modal.msgError('流程实例ID不存在');
-          return;
-        }
-        try {
-          this.$router.push({
-            path: '/workflow/process/detail/' + row.procInsId,
-            query: {
-              definitionId: row.procDefId,
-              deployId: row.deployId,
-              taskId: row.taskId,
-              finished: true
-            }
-          }).catch(err => {
-            console.error('路由跳转失败:', err);
-            this.$modal.msgError('无法跳转到流程详情页，可能是权限不足或路由未配置');
-          });
-        } catch (err) {
-          console.error('路由跳转异常:', err);
-          this.$modal.msgError('路由跳转异常：' + err.message);
-        }
+        // Flowable流程任务已移除，提示用户
+        this.$modal.msgWarning('Flowable 流程功能已移除，仅支持简化审批流程');
       }
     },
     // 取消按钮
@@ -353,84 +332,16 @@ export default {
     },
     /* 批量通过 */
     async batAccept(){
-      if( this.checkComment()){
-        let thisItem;
-        try{
-          this.batLoading = true;
-          for(let i = 0;i<this.multipleSelection.length;i++){
-            let item = this.multipleSelection[i];
-            thisItem  = item;
-            let index = i;
-            this.taskForm.taskId = item.taskId;
-            this.taskForm.definitionId = item.procDefId;
-            this.taskForm.deployId = item.deployId;
-            this.taskForm.procInsId = item.procInsId;
-            console.log(this.taskForm.comment)
-            let dat = this.taskForm;
-            await complete(dat); // 等待请求完成
-            this.batFlag = ((index+1)*100) / this.multipleSelection.length;
-          }
-          this.batFlagDesc = "success";
-          this.batSuccess = true;
-        }
-        catch(error){
-        this.errorInput = "当前任务无法被处理："
-                          +"<br>任务编号："+thisItem.taskId
-                          +"<br>任务名称："+(thisItem.procDefName || thisItem.taskName || '')
-                          +"<br>错误信息："+error.message;
-          this.batError = true;
-        }
-      }else{
-        this.$modal.msgError("必须填写审批意见")
-      }
-      
+      // Flowable 批量处理功能已移除
+      this.$modal.msgWarning("批量处理功能仅支持简化审批流程，请单独处理每个任务");
     },
     /* 批量拒绝 */
     batPass(){
-      if( this.checkComment()){
-
-        this.$modal
-            .confirm("拒绝审批单流程会终止，是否继续？")
-            .then(() => {
-                this.passAction();
-            })
-      }else{
-        this.$modal.msgError("必须填写审批意见")
-      }
-      
+      // Flowable 批量处理功能已移除
+      this.$modal.msgWarning("批量处理功能仅支持简化审批流程，请单独处理每个任务");
     },
     async passAction(){
-      let thisItem;
-      this.batLoading = true;
-      try{
-        for(let i = 0;i<this.multipleSelection.length;i++){
-          let item = this.multipleSelection[i];
-          let index = i;
-          thisItem  = item;
-          this.taskForm.taskId = item.taskId;
-          this.taskForm.definitionId = item.procDefId;
-          this.taskForm.deployId = item.deployId;
-          this.taskForm.procInsId = item.procInsId;
-          console.log(this.taskForm.comment)
-          let dat = this.taskForm;
-          await rejectTask(dat); // 等待请求完成
-          this.batFlag = ((index+1)*100) / this.multipleSelection.length;
-        }
-
-        this.batFlagDesc = "success";
-        this.batSuccess = true; 
-        }
-      catch(error){
-            this.errorInput = "当前任务无法被处理："
-                            +"<br>任务编号："+thisItem.taskId
-                            +"<br>任务名称："+(thisItem.procDefName || thisItem.taskName || '')
-                        +"<br>错误信息："+error.message;
-        this.batError = true;
-      }
-
-      
-              
-      
+      // Flowable 批量处理功能已移除
     },
     checkComment(){
         return this.taskForm.comment.length > 0;

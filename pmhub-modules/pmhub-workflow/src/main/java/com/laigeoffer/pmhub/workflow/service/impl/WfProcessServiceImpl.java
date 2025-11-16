@@ -39,7 +39,6 @@ import com.laigeoffer.pmhub.workflow.mapper.WfApprovalTaskMapper;
 import com.laigeoffer.pmhub.workflow.domain.WfApprovalTask;
 import com.laigeoffer.pmhub.workflow.service.IWfDeployService;
 import com.laigeoffer.pmhub.workflow.service.IWfProcessService;
-import com.laigeoffer.pmhub.workflow.service.IWfTaskService;
 import com.laigeoffer.pmhub.workflow.utils.ProcessFormUtils;
 import com.laigeoffer.pmhub.workflow.utils.ProcessUtils;
 import com.laigeoffer.pmhub.workflow.utils.TaskUtils;
@@ -76,7 +75,6 @@ import java.util.stream.Collectors;
 @Service
 public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProcessService {
 
-    private final IWfTaskService wfTaskService;
     private final WfCopyMapper wfCopyMapper;
     private final WfDeployFormMapper deployFormMapper;
     private final IWfDeployService deployService;
@@ -1249,9 +1247,9 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         identityService.setAuthenticatedUserId(userIdStr);
         variables.put(BpmnXMLConstants.ATTRIBUTE_EVENT_START_INITIATOR, userIdStr);
         // 发起流程实例
-        ProcessInstance processInstance = runtimeService.startProcessInstanceById(procDef.getId(), variables);
+        runtimeService.startProcessInstanceById(procDef.getId(), variables);
         // 第一个用户任务为发起人，则自动完成任务
-        wfTaskService.startFirstTask(processInstance, variables);
+        // 注意：已删除 WfTaskService，如需自动完成第一个任务，请使用 Flowable API 直接处理
     }
 
     /**

@@ -1,32 +1,21 @@
 package com.laigeoffer.pmhub.workflow.service;
 
-import com.laigeoffer.pmhub.base.core.core.domain.PageQuery;
-import com.laigeoffer.pmhub.base.core.core.page.Table2DataInfo;
-import com.laigeoffer.pmhub.workflow.core.domain.ProcessQuery;
 import com.laigeoffer.pmhub.workflow.domain.WfMaterialsScrappedProcess;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.WfTaskProcess;
 import com.laigeoffer.pmhub.base.core.core.domain.dto.ApprovalSetDTO;
 import com.laigeoffer.pmhub.workflow.domain.dto.MaterialsApprovalSetDTO;
 import com.laigeoffer.pmhub.workflow.domain.vo.MaterialsApprovalSetVO;
-import com.laigeoffer.pmhub.workflow.domain.vo.WfDeployVo;
 
 import java.util.List;
 
 /**
+ * 审批设置服务接口
+ * 注意：已删除 Flowable 流程部署相关方法，仅保留审批设置相关方法
+ * 
  * @author chenqingtong
  * @createTime 2024/6/30 9:03
  */
 public interface IWfDeployService {
-
-    Table2DataInfo<WfDeployVo> queryPageList(ProcessQuery processQuery, PageQuery pageQuery);
-
-    Table2DataInfo<WfDeployVo> queryPublishList(String processKey, PageQuery pageQuery);
-
-    void updateState(String definitionId, String stateCode);
-
-    String queryBpmnXmlById(String definitionId);
-
-    void deleteByIds(List<String> deployIds);
 
     void approvalSet(MaterialsApprovalSetDTO approvalSetDTO, String type);
     MaterialsApprovalSetVO queryApprovalSet(String type, String taskId);

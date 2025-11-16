@@ -1,12 +1,7 @@
 package com.laigeoffer.pmhub.workflow.service.impl;
 
-import cn.hutool.core.io.IORuntimeException;
-import cn.hutool.core.io.IoUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.laigeoffer.pmhub.base.core.core.domain.PageQuery;
 import com.laigeoffer.pmhub.base.core.core.domain.R;
-import com.laigeoffer.pmhub.base.core.core.page.Table2DataInfo;
 import com.laigeoffer.pmhub.base.core.constant.SecurityConstants;
 import com.laigeoffer.pmhub.base.core.enums.ProjectStatusEnum;
 import com.laigeoffer.pmhub.base.core.exception.ServiceException;
@@ -14,39 +9,31 @@ import com.laigeoffer.pmhub.base.security.utils.SecurityUtils;
 import com.laigeoffer.pmhub.base.core.utils.StringUtils;
 import com.laigeoffer.pmhub.base.core.utils.JsonUtils;
 import com.laigeoffer.pmhub.api.project.ProjectTaskProcessFeignService;
-import com.laigeoffer.pmhub.workflow.core.domain.ProcessQuery;
 import com.laigeoffer.pmhub.workflow.domain.WfApprovalSet;
-import com.laigeoffer.pmhub.workflow.domain.WfDeployForm;
 import com.laigeoffer.pmhub.workflow.domain.WfMaterialsScrappedProcess;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.WfTaskProcess;
 import com.laigeoffer.pmhub.base.core.core.domain.dto.ApprovalSetDTO;
 import com.laigeoffer.pmhub.workflow.domain.dto.MaterialsApprovalSetDTO;
 import com.laigeoffer.pmhub.workflow.domain.vo.MaterialsApprovalSetVO;
-import com.laigeoffer.pmhub.workflow.domain.vo.WfDeployVo;
 import com.laigeoffer.pmhub.workflow.mapper.WfApprovalSetMapper;
-import com.laigeoffer.pmhub.workflow.mapper.WfDeployFormMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfMaterialsScrappedProcessMapper;
 import com.laigeoffer.pmhub.workflow.service.IWfDeployService;
 import com.laigeoffer.pmhub.workflow.utils.ProcessUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
-import org.flowable.common.engine.impl.db.SuspensionState;
-import org.flowable.engine.RepositoryService;
 import org.flowable.engine.history.HistoricProcessInstance;
-import org.flowable.engine.repository.Deployment;
-import org.flowable.engine.repository.ProcessDefinition;
-import org.flowable.engine.repository.ProcessDefinitionQuery;
 import org.flowable.engine.task.Comment;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.InputStream;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
+ * 审批设置服务实现类
+ * 注意：已删除 Flowable 流程部署相关方法，仅保留审批设置相关方法
+ * 
  * @author chenqingtong
  * @createTime 2024/6/30 9:04
  */
@@ -56,140 +43,13 @@ import java.util.stream.Collectors;
 public class WfDeployServiceImpl implements IWfDeployService {
 
     @Autowired(required = false)
-    private RepositoryService repositoryService;
-    
-    @Autowired(required = false)
     private org.flowable.engine.HistoryService historyService;
     
     @Autowired(required = false)
     private org.flowable.engine.TaskService taskService;
-    private final WfDeployFormMapper deployFormMapper;
     private final WfApprovalSetMapper wfApprovalSetMapper;
     private final WfMaterialsScrappedProcessMapper wfMaterialsScrappedProcessMapper;
     private final ProjectTaskProcessFeignService projectTaskProcessFeignService;
-
-    @Override
-    public Table2DataInfo<WfDeployVo> queryPageList(ProcessQuery processQuery, PageQuery pageQuery) {
-        if (repositoryService == null) {
-            throw new ServiceException("Flowable 服务未启用，无法查询流程定义列表");
-        }
-        // 流程定义列表数据查询
-        ProcessDefinitionQuery processDefinitionQuery = repositoryService.createProcessDefinitionQuery()
-                .latestVersion()
-                .orderByProcessDefinitionKey()
-                .desc();
-        // 构建搜索条件
-        ProcessUtils.buildProcessSearch(processDefinitionQuery, processQuery);
-        long pageTotal = processDefinitionQuery.count();
-        if (pageTotal <= 0) {
-            return Table2DataInfo.build();
-        }
-        int offset = pageQuery.getPageSize() * (pageQuery.getPageNum() - 1);
-        List<ProcessDefinition> definitionList = processDefinitionQuery.listPage(offset, pageQuery.getPageSize());
-
-        List<WfDeployVo> deployVoList = new ArrayList<>(definitionList.size());
-        for (ProcessDefinition processDefinition : definitionList) {
-            String deploymentId = processDefinition.getDeploymentId();
-            Deployment deployment = repositoryService.createDeploymentQuery().deploymentId(deploymentId).singleResult();
-            WfDeployVo vo = new WfDeployVo();
-            vo.setDefinitionId(processDefinition.getId());
-            vo.setProcessKey(processDefinition.getKey());
-            vo.setProcessName(processDefinition.getName());
-            vo.setVersion(processDefinition.getVersion());
-            vo.setCategory(processDefinition.getCategory());
-            vo.setDeploymentId(processDefinition.getDeploymentId());
-            vo.setSuspended(processDefinition.isSuspended());
-            // 流程部署信息
-            vo.setCategory(deployment.getCategory());
-            vo.setDeploymentTime(deployment.getDeploymentTime());
-            deployVoList.add(vo);
-        }
-        deployVoList.sort(Comparator.comparing(WfDeployVo::getDeploymentTime).reversed());
-        Page<WfDeployVo> page = new Page<>();
-        page.setRecords(deployVoList);
-        page.setTotal(pageTotal);
-        return Table2DataInfo.build(page);
-    }
-
-    @Override
-    public Table2DataInfo<WfDeployVo> queryPublishList(String processKey, PageQuery pageQuery) {
-        if (repositoryService == null) {
-            throw new ServiceException("Flowable 服务未启用，无法查询发布列表");
-        }
-        // 创建查询条件
-        ProcessDefinitionQuery processDefinitionQuery = repositoryService.createProcessDefinitionQuery()
-                .processDefinitionKey(processKey)
-                .orderByProcessDefinitionVersion()
-                .desc();
-        long pageTotal = processDefinitionQuery.count();
-        if (pageTotal <= 0) {
-            return Table2DataInfo.build();
-        }
-        // 根据查询条件，查询所有版本
-        int offset = pageQuery.getPageSize() * (pageQuery.getPageNum() - 1);
-        List<ProcessDefinition> processDefinitionList = processDefinitionQuery
-                .listPage(offset, pageQuery.getPageSize());
-        List<WfDeployVo> deployVoList = processDefinitionList.stream().map(item -> {
-            WfDeployVo vo = new WfDeployVo();
-            vo.setDefinitionId(item.getId());
-            vo.setProcessKey(item.getKey());
-            vo.setProcessName(item.getName());
-            vo.setVersion(item.getVersion());
-            vo.setCategory(item.getCategory());
-            vo.setDeploymentId(item.getDeploymentId());
-            vo.setSuspended(item.isSuspended());
-            return vo;
-        }).collect(Collectors.toList());
-        Page<WfDeployVo> page = new Page<>();
-        page.setRecords(deployVoList);
-        page.setTotal(pageTotal);
-        return Table2DataInfo.build(page);
-    }
-
-    /**
-     * 激活或挂起流程
-     *
-     * @param state        状态
-     * @param definitionId 流程定义ID
-     */
-    @Override
-    public void updateState(String definitionId, String state) {
-        if (repositoryService == null) {
-            throw new ServiceException("Flowable 服务未启用，无法更新流程状态");
-        }
-        if (SuspensionState.ACTIVE.toString().equals(state)) {
-            // 激活
-            repositoryService.activateProcessDefinitionById(definitionId, true, null);
-        } else if (SuspensionState.SUSPENDED.toString().equals(state)) {
-            // 挂起
-            repositoryService.suspendProcessDefinitionById(definitionId, true, null);
-        }
-    }
-
-    @Override
-    public String queryBpmnXmlById(String definitionId) {
-        if (repositoryService == null) {
-            throw new ServiceException("Flowable 服务未启用，无法查询 BPMN XML");
-        }
-        InputStream inputStream = repositoryService.getProcessModel(definitionId);
-        try {
-            return IoUtil.readUtf8(inputStream);
-        } catch (IORuntimeException exception) {
-            throw new RuntimeException("加载xml文件异常");
-        }
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteByIds(List<String> deployIds) {
-        if (repositoryService == null) {
-            throw new ServiceException("Flowable 服务未启用，无法删除部署");
-        }
-        for (String deployId : deployIds) {
-            repositoryService.deleteDeployment(deployId, true);
-            deployFormMapper.delete(new LambdaQueryWrapper<WfDeployForm>().eq(WfDeployForm::getDeployId, deployId));
-        }
-    }
 
     /**
      * 新增或更新审批设置

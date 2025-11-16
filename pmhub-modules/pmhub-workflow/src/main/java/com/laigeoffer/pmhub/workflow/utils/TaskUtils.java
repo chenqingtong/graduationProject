@@ -10,21 +10,29 @@ import java.util.List;
 
 /**
  * 工作流任务工具类
+ * 注意：Flowable 相关方法已标记为废弃，仅用于兼容旧代码，简化审批流程不使用这些方法
  *
  * @author chenqingtong
  * @createTime 2024/4/24 12:42
  */
 public class TaskUtils {
 
+    /**
+     * 获取当前用户ID（字符串格式）
+     * 
+     * @return 用户ID字符串
+     */
     public static String getUserId() {
         return String.valueOf(SecurityUtils.getUserId());
     }
 
     /**
      * 获取用户组信息
-     *
+     * 
+     * @deprecated Flowable 相关方法，已禁用 Flowable，此方法仅用于兼容旧代码
      * @return candidateGroup
      */
+    @Deprecated
     public static List<String> getCandidateGroup() {
         List<String> list = new ArrayList<>();
         LoginUser user = SecurityUtils.getLoginUser();
@@ -39,8 +47,4 @@ public class TaskUtils {
         return list;
     }
 
-    // TODO: 2024.04.25 注释oa模块 
-//    public static String createSsoUrl(String taskId){
-//        return SsoUrlUtils.ssoCreate(appid,agentid, host+path+"/pmhub-project/my-task/info?taskId="+ taskId);
-//    }
 }

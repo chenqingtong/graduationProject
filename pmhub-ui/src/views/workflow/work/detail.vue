@@ -265,10 +265,10 @@
 </template>
 
 <script>
-import { detailProcess } from "@/api/workflow/process"
+// 注意：Flowable 流程详情功能已移除，此页面仅保留用于兼容和查看流转记录
 import Parser from "@/utils/generator/parser"
-import { complete, delegate, transfer, rejectTask, returnList, returnTask } from "@/api/workflow/task"
 import { selectUser, deptTreeSelect } from "@/api/system/user"
+import { detailProcess } from "@/api/workflow/process"
 import "@riophae/vue-treeselect/dist/vue-treeselect.css"
 import Treeselect from "@riophae/vue-treeselect"
 import html2canvas from "html2canvas"
@@ -391,8 +391,8 @@ export default {
       this.taskForm.taskId = this.$route.query && this.$route.query.taskId
       this.finished = this.$route.query && this.$route.query.finished
       this.activeTab = this.finished === "true" ? "approval" : "record"
-      // 流程任务重获取变量表单
-      if (this.taskForm.taskId) {
+      // 查询流转记录（只要有 procInsId 或 taskId 即可）
+      if (this.taskForm.procInsId || this.taskForm.taskId) {
         this.getProcessDetails(this.taskForm.procInsId, this.taskForm.deployId, this.taskForm.taskId)
       }
     },
@@ -491,14 +491,30 @@ export default {
       }
     },
     getProcessDetails(procInsId, deployId, taskId) {
-      const params = { procInsId: procInsId, deployId: deployId, taskId: taskId }
-      detailProcess(params).then((res) => {
-        const data = res.data
-        this.taskFormOpen = data.existTaskForm
-        if (this.taskFormOpen) {
-          this.taskFormData = data.taskFormData
+      // 仅用于查询流转记录（支持 Flowable 和简化审批流程）
+      if (!procInsId && !taskId) {
+        this.historyProcNodeList = []
+        return
+      }
+      detailProcess({
+        procInsId: procInsId,
+        deployId: deployId,
+        taskId: taskId
+      }).then(response => {
+        if (response.code === 200 && response.data) {
+          // 只获取流转记录数据，不处理其他 Flowable 功能
+          this.historyProcNodeList = response.data.historyProcNodeList || []
+          // 如果有表单数据，也设置（简化审批流程可能不需要）
+          if (response.data.taskFormData) {
+            this.taskFormData = response.data.taskFormData
+            this.taskFormOpen = true
+          }
+        } else {
+          this.historyProcNodeList = []
         }
-        this.historyProcNodeList = data.historyProcNodeList || []
+      }).catch(error => {
+        console.error('获取流转记录失败:', error)
+        this.historyProcNodeList = []
       })
     },
     onSelectCopyUsers() {
@@ -518,79 +534,23 @@ export default {
     },
     /** 通过任务 */
     handleComplete() {
-      // 校验表单
-      const taskFormRef = this.$refs.taskFormParser
-      const isExistTaskForm = taskFormRef !== undefined
-      // 若无任务表单，则 taskFormPromise 为 true，即不需要校验
-      const taskFormPromise = !isExistTaskForm
-        ? true
-        : new Promise((resolve, reject) => {
-            taskFormRef.$refs[taskFormRef.formConfCopy.formRef].validate((valid) => {
-              valid ? resolve() : reject()
-            })
-          })
-      const approvalPromise = new Promise((resolve, reject) => {
-        this.$refs["taskForm"].validate((valid) => {
-          valid ? resolve() : reject()
-        })
-      })
-      Promise.all([taskFormPromise, approvalPromise]).then(() => {
-        if (isExistTaskForm) {
-          this.taskForm.variables = taskFormRef[taskFormRef.formConfCopy.formModel]
-        }
-        this.$modal.loading("处理中...")
-        complete(this.taskForm)
-          .then((response) => {
-            this.$modal.msgSuccess(response.msg)
-            this.goBack()
-          })
-          .finally(() => {
-            this.$modal.closeLoading()
-          })
-      })
+      // Flowable 任务处理功能已移除
+      this.$modal.msgWarning('Flowable 流程任务处理功能已移除，仅支持简化审批流程');
     },
     /** 委派任务 */
     handleDelegate() {
-      this.$refs["taskForm"].validate((valid) => {
-        if (valid) {
-          this.userData.type = "delegate"
-          this.userData.title = "委派任务"
-          this.userData.open = true
-          this.getTreeSelect()
-        }
-      })
+      // Flowable 委派功能已移除
+      this.$modal.msgWarning('Flowable 委派功能已移除');
     },
     /** 转办任务 */
     handleTransfer() {
-      this.$refs["taskForm"].validate((valid) => {
-        if (valid) {
-          this.userData.type = "transfer"
-          this.userData.title = "转办任务"
-          this.userData.open = true
-          this.getTreeSelect()
-        }
-      })
+      // Flowable 转办功能已移除
+      this.$modal.msgWarning('Flowable 转办功能已移除');
     },
     /** 拒绝任务 */
     handleReject() {
-      this.$refs["taskForm"].validate((valid) => {
-        if (valid) {
-          const _this = this
-          this.$modal
-            .confirm("拒绝审批单流程会终止，是否继续？")
-            .then(() => {
-              this.$modal.loading("处理中...")
-              return rejectTask(_this.taskForm)
-            })
-            .then((res) => {
-              this.$modal.msgSuccess(res.msg)
-              this.goBack()
-            })
-            .finally(() => {
-              this.$modal.closeLoading()
-            })
-        }
-      })
+      // Flowable 拒绝功能已移除
+      this.$modal.msgWarning('Flowable 拒绝功能已移除');
     },
     changeCurrentUser(val) {
       this.currentUserId = val.userId
@@ -653,45 +613,24 @@ export default {
         }
         this.taskForm.userId = this.currentUserId
         if (type === "delegate") {
-          delegate(this.taskForm).then((res) => {
-            this.$modal.msgSuccess(res.msg)
-            this.goBack()
-          })
+          // Flowable 委派功能已移除
+          this.$modal.msgWarning('Flowable 委派功能已移除');
         }
         if (type === "transfer") {
-          transfer(this.taskForm).then((res) => {
-            this.$modal.msgSuccess(res.msg)
-            this.goBack()
-          })
+          // Flowable 转办功能已移除
+          this.$modal.msgWarning('Flowable 转办功能已移除');
         }
       }
     },
     /** 可退回任务列表 */
     handleReturn() {
-      this.$refs["taskForm"].validate((valid) => {
-        if (valid) {
-          this.returnTitle = "退回流程"
-          returnList(this.taskForm).then((res) => {
-            this.returnTaskList = res.data
-            this.taskForm.values = null
-            this.returnOpen = true
-          })
-        }
-      })
+      // Flowable 退回功能已移除
+      this.$modal.msgWarning('Flowable 退回功能已移除');
     },
     /** 提交退回任务 */
     submitReturn() {
-      this.$refs["taskForm"].validate((valid) => {
-        if (valid) {
-          if (!this.taskForm.targetKey) {
-            this.$modal.msgError("请选择退回节点！")
-          }
-          returnTask(this.taskForm).then((res) => {
-            this.$modal.msgSuccess(res.msg)
-            this.goBack()
-          })
-        }
-      })
+      // Flowable 退回功能已移除
+      this.$modal.msgWarning('Flowable 退回功能已移除');
     },
     // 打印页面
     printFile() {

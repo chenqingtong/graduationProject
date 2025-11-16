@@ -14,16 +14,16 @@ import java.util.Map;
 
 /**
  * 流程工具类
+ * 注意：Flowable 相关方法已标记为废弃，仅用于兼容旧代码，简化审批流程不使用这些方法
  *
  * @author chenqingtong
  * @since 2022/12/11 03:35
  */
 public class ProcessUtils {
 
-
     /**
      * 任务详情url的key
-     * */
+     */
     public static final String TASK_DETAIL_URL_KEY = "taskDetailUrl";
 
     public static final String LEADER_LIST = "startUserLeaderList";
@@ -38,6 +38,10 @@ public class ProcessUtils {
     public static final String SUPPLIER_APPROVAL_TYPE = "SUPPLIER_APPROVAL";
     public static final String SCRAPPED_OUT_APPROVAL_TYPE = "USELESS_OUT";
 
+    /**
+     * @deprecated Flowable 相关方法，已禁用 Flowable，此方法仅用于兼容旧代码
+     */
+    @Deprecated
     public static void buildProcessSearch(Query<?, ?> query, ProcessQuery process) {
         if (query instanceof ProcessDefinitionQuery) {
             buildProcessDefinitionSearch((ProcessDefinitionQuery) query, process);
@@ -51,8 +55,9 @@ public class ProcessUtils {
     }
 
     /**
-     * 构建流程定义搜索
+     * @deprecated Flowable 相关方法，已禁用 Flowable，此方法仅用于兼容旧代码
      */
+    @Deprecated
     public static void buildProcessDefinitionSearch(ProcessDefinitionQuery query, ProcessQuery process) {
         // 流程标识
         if (StringUtils.isNotBlank(process.getProcessKey())) {
@@ -77,8 +82,9 @@ public class ProcessUtils {
     }
 
     /**
-     * 构建任务搜索
+     * @deprecated Flowable 相关方法，已禁用 Flowable，此方法仅用于兼容旧代码
      */
+    @Deprecated
     public static void buildTaskSearch(TaskQuery query, ProcessQuery process) {
         Map<String, Object> params = process.getParams();
         if (StringUtils.isNotBlank(process.getProcessKey())) {
@@ -93,6 +99,10 @@ public class ProcessUtils {
         }
     }
 
+    /**
+     * @deprecated Flowable 相关方法，已禁用 Flowable，此方法仅用于兼容旧代码
+     */
+    @Deprecated
     private static void buildHistoricTaskInstanceSearch(HistoricTaskInstanceQuery query, ProcessQuery process) {
         Map<String, Object> params = process.getParams();
         if (StringUtils.isNotBlank(process.getProcessKey())) {
@@ -108,8 +118,9 @@ public class ProcessUtils {
     }
 
     /**
-     * 构建历史流程实例搜索
+     * @deprecated Flowable 相关方法，已禁用 Flowable，此方法仅用于兼容旧代码
      */
+    @Deprecated
     public static void buildHistoricProcessInstanceSearch(HistoricProcessInstanceQuery query, ProcessQuery process) {
         Map<String, Object> params = process.getParams();
         // 流程标识

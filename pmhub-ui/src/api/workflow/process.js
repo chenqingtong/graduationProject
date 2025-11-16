@@ -1,29 +1,7 @@
 import request from '@/utils/request'
 
-// 查询流程列表
-export function listProcess(query) {
-  return request({
-    url: '/workflow/process/list',
-    method: 'get',
-    params: query
-  })
-}
-
-// 获取流程图
-export function getBpmnXml(processDefId) {
-  return request({
-    url: '/workflow/process/bpmnXml/' + processDefId,
-    method: 'get'
-  })
-}
-
-export function detailProcess(query) {
-  return request({
-    url: '/workflow/process/detail',
-    method: 'get',
-    params: query
-  })
-}
+// 注意：listProcess、getBpmnXml 接口已删除（Flowable 相关功能已移除）
+// detailProcess 接口保留，仅用于查询流转记录
 
 // 我待办的流程
 export function listTodoProcess(query) {
@@ -61,5 +39,14 @@ export function getApprovalTaskList(extraId, type) {
       extraId,
       type
     }
+  })
+}
+
+// 查询流程详情（仅用于获取流转记录，支持 Flowable 和简化审批流程）
+export function detailProcess(query) {
+  return request({
+    url: '/workflow/process/detail',
+    method: 'get',
+    params: query
   })
 }

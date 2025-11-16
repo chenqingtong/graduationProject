@@ -1,10 +1,3 @@
 import request from '@/utils/request'
 
-// 撤回任务
-export function revokeProcess(data) {
-  return request({
-    url: '/workflow/task/revokeProcess',
-    method: 'post',
-    data: data
-  })
-}
+// 注意：revokeProcess 接口已删除（Flowable 相关功能已移除）

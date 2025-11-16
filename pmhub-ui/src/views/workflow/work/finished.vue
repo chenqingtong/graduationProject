@@ -88,7 +88,6 @@
 
 <script>
 import { listFinishedProcess } from '@/api/workflow/process';
-import { revokeProcess } from "@/api/workflow/finished";
 
 export default {
   name: "Finished",
@@ -226,14 +225,8 @@ export default {
     },
     /** 撤回任务 */
     handleRevoke(row) {
-      const params = {
-        procInsId: row.procInsId,
-        taskId: row.taskId
-      };
-      revokeProcess(params).then(res => {
-        this.$modal.msgSuccess(res.msg);
-        this.getList();
-      });
+      // Flowable 撤回功能已移除
+      this.$modal.msgWarning('Flowable 流程撤回功能已移除，仅支持简化审批流程');
     },
     /** 导出按钮操作 */
     handleExport() {
