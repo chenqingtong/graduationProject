@@ -9,7 +9,6 @@
     <version>0.0.1</version>
 
     <name>pmhub</name>
-    <description>🔥热门推荐🔥大学春招、秋招、应届项目，SpringCloud + SpringCloud Alibaba + RocketMQ等技术架构，完成项目管理+BPM流程管理+AI智能项目，帮助学生主打就业的项目。</description>
 
     <modules>
         <module>pmhub-gateway</module>

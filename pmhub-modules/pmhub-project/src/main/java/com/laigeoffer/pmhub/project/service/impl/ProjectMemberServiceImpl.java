@@ -42,20 +42,66 @@ public class ProjectMemberServiceImpl extends ServiceImpl<ProjectMemberMapper, P
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void inviteMemberList(ProjectVO projectVO) {
-        if (CollectionUtils.isNotEmpty(projectVO.getUserIdList())) {
-            projectVO.getUserIdList().forEach(a -> {
-                ProjectMember projectMember = new ProjectMember();
-                projectMember.setUserId(a);
-                projectMember.setPtId(projectVO.getProjectId());
-                projectMember.setType(ProjectStatusEnum.PROJECT.getStatusName());
-                projectMember.setJoinedTime(new Date());
-                projectMember.setCreatedBy(SecurityUtils.getUsername());
-                projectMember.setCreatedTime(new Date());
-                projectMember.setUpdatedBy(SecurityUtils.getUsername());
-                projectMember.setUpdatedTime(new Date());
-                projectMemberMapper.insert(projectMember);
-            });
+        if (CollectionUtils.isEmpty(projectVO.getUserIdList())) {
+            return;
+        }
 
+        // 去重处理
+        List<Long> userIdList = projectVO.getUserIdList().stream().distinct().collect(Collectors.toList());
+
+        // 1. 验证用户ID的有效性
+        SysUserDTO sysUserDTO = new SysUserDTO();
+        sysUserDTO.setUserIds(userIdList);
+        R<List<SysUserVO>> userResult = userFeignService.listOfInner(sysUserDTO, SecurityConstants.INNER);
+
+        if (Objects.isNull(userResult) || CollectionUtils.isEmpty(userResult.getData())) {
+            throw new ServiceException("远程调用查询用户列表失败，无法验证用户ID有效性");
+        }
+
+        List<SysUserVO> validUsers = userResult.getData();
+        Map<Long, SysUserVO> userMap = validUsers.stream().collect(Collectors.toMap(SysUserVO::getUserId, a -> a));
+
+        // 检查是否有无效的用户ID
+        List<Long> invalidUserIds = userIdList.stream()
+                .filter(userId -> !userMap.containsKey(userId))
+                .collect(Collectors.toList());
+        if (CollectionUtils.isNotEmpty(invalidUserIds)) {
+            throw new ServiceException("以下用户ID不存在或无效：" + invalidUserIds);
+        }
+
+        // 2. 检查是否已经加入项目（避免重复添加）
+        LambdaQueryWrapper<ProjectMember> existQueryWrapper = new LambdaQueryWrapper<>();
+        existQueryWrapper.eq(ProjectMember::getPtId, projectVO.getProjectId())
+                .eq(ProjectMember::getType, ProjectStatusEnum.PROJECT.getStatusName())
+                .in(ProjectMember::getUserId, userIdList);
+        List<ProjectMember> existingMembers = projectMemberMapper.selectList(existQueryWrapper);
+        Set<Long> existingUserIds = existingMembers.stream()
+                .map(ProjectMember::getUserId)
+                .collect(Collectors.toSet());
+
+        // 过滤出需要添加的用户（排除已存在的）
+        List<Long> usersToAdd = userIdList.stream()
+                .filter(userId -> !existingUserIds.contains(userId))
+                .collect(Collectors.toList());
+
+        if (CollectionUtils.isEmpty(usersToAdd)) {
+            throw new ServiceException("所选用户已全部加入该项目，无需重复添加");
+        }
+
+        // 3. 批量添加新成员
+        Date now = new Date();
+        String username = SecurityUtils.getUsername();
+        for (Long userId : usersToAdd) {
+            ProjectMember projectMember = new ProjectMember();
+            projectMember.setUserId(userId);
+            projectMember.setPtId(projectVO.getProjectId());
+            projectMember.setType(ProjectStatusEnum.PROJECT.getStatusName());
+            projectMember.setJoinedTime(now);
+            projectMember.setCreatedBy(username);
+            projectMember.setCreatedTime(now);
+            projectMember.setUpdatedBy(username);
+            projectMember.setUpdatedTime(now);
+            projectMemberMapper.insert(projectMember);
         }
     }
 
