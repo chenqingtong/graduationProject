@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * @author chenqingtong
- * @date 2023-01-09 11:41
+ * @date 2024-01-09 11:41
  */
 public abstract class QueryAbstractExecutor {
     public abstract List<ProjectResVO> query(ProjectReqVO projectReqVO);

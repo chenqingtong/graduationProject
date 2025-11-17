@@ -6,8 +6,6 @@
           <el-card shadow="never">
             <el-row :gutter="20">
               <el-col :span="12">
-                <!-- 封面上传功能已暂时注释 -->
-                <!--
                 <el-upload
                   ref="coverUploadRef"
                   :action="uploadCoverFileUrl"
@@ -21,16 +19,12 @@
                   :on-error="handleCoverUploadError"
                   :on-success="handleCoverUploadSuccess"
                   :on-remove="handleCoverUploadRemove"
+                  :limit="1"
                   list-type="picture-card"
                 >
                   <i class="el-icon-plus" />
                   <div slot="tip" class="el-upload__tip">项目封面最佳图片比例为 150 * 150</div>
                 </el-upload>
-                -->
-                <div style="text-align: center; padding: 20px; border: 1px dashed #dcdfe6; border-radius: 4px;">
-                  <i class="el-icon-picture" style="font-size: 48px; color: #c0c4cc;"></i>
-                  <div style="margin-top: 10px; color: #909399;">封面上传功能暂时不可用</div>
-                </div>
               </el-col>
               <el-col :span="12">
                 <el-form ref="infoFormRef1" :model="infoFormData" label-width="100px" label-position="left">

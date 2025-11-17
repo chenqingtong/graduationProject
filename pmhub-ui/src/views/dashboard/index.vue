@@ -323,6 +323,7 @@ export default {
       // 获取任务状态
       for (let i = 0; i < res.data.taskStatisticsVOList.length; i++) {
         const item = res.data.taskStatisticsVOList[i]
+        if (item.statusName === "待认领") continue
         this.taskStatusData.push({
           name: item.statusName,
           value: item.taskNum,

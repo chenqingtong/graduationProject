@@ -108,13 +108,6 @@
           <span class="title">所属阶段</span>
         </div>
       </div>
-      <div class="panel">
-        <i class="el-icon-collection-tag" style="font-size: 40px; color: #409eff" />
-        <div class="content">
-          <el-input v-model.trim="param.taskFlow" @change="updateTaskInfo" size="mini"></el-input>
-          <span class="title">所属流程</span>
-        </div>
-      </div>
     </el-card>
     <el-row :gutter="20">
       <el-col :span="12" class="maxHeight70">
@@ -126,7 +119,6 @@
           <el-descriptions :column="1" title="基础信息">
             <el-descriptions-item label="所属项目">{{ basic.projectName }}</el-descriptions-item>
             <el-descriptions-item label="所属阶段">{{ basic.stageName }}</el-descriptions-item>
-            <el-descriptions-item label="所属流程">{{ basic.taskFlow }}</el-descriptions-item>
             <el-descriptions-item label="创建者">{{ basic.executor }}</el-descriptions-item>
             <el-descriptions-item label="创建时间">{{ basic.createdTime }}</el-descriptions-item>
             <el-descriptions-item label="更新时间">{{ basic.updatedTime }}</el-descriptions-item>
@@ -320,7 +312,6 @@ export default {
         status: "",
         taskPriority: "",
         projectStageId: "",
-        taskFlow: "",
       },
       // 执行人需要的下拉框数据
       userOptions: [],
@@ -394,7 +385,6 @@ export default {
       basic: {
         projectName: "",
         stageName: "",
-        taskFlow: "",
         executor: "",
         createdTime: "",
         updatedTime: "",
@@ -453,13 +443,11 @@ export default {
         this.param.status = res.data.status
         this.param.taskPriority = res.data.taskPriority
         this.param.projectStageId = res.data.projectStageId
-        this.param.taskFlow = res.data.taskFlow
         // 描述模块
         this.description = res.data.description
         // 基础信息模块
         this.basic.projectName = res.data.projectName
         this.basic.stageName = res.data.stageName
-        this.basic.taskFlow = res.data.taskFlow
         this.basic.executor = res.data.executor
         this.basic.createdTime = res.data.createdTime
         this.basic.updatedTime = res.data.updatedTime
@@ -525,7 +513,6 @@ export default {
         status: this.param.status,
         taskPriority: this.param.taskPriority,
         projectStageId: this.param.projectStageId,
-        taskFlow: this.param.taskFlow,
         description: this.description,
         beginTime: this.progress.beginTime ? this.progress.beginTime : "",
         endTime: this.progress.endTime ? this.progress.endTime : "",
