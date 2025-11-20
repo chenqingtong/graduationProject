@@ -9,7 +9,7 @@ import java.awt.geom.RoundRectangle2D;
 
 /**
  * @author chenqingtong
- * @date 2021-04-03
+ * @date 2024-04-03
  */
 public class MyDefaultProcessDiagramCanvas extends DefaultProcessDiagramCanvas {
     //设置高亮线的颜色  这里我设置成绿色

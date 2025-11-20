@@ -258,6 +258,49 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
                 .collect(Collectors.toList());
     }
 
+    private String getExecutorNickName(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        List<SysUser> sysUsers = getSysUserList(Collections.singletonList(userId));
+        if (CollectionUtils.isEmpty(sysUsers)) {
+            return null;
+        }
+        return sysUsers.get(0).getNickName();
+    }
+
+    private void fillExecutorInfo(List<TaskResVO> tasks) {
+        List<Long> needResolveUserIds = tasks.stream()
+                .filter(task -> Objects.nonNull(task.getUserId()) && StringUtils.isBlank(task.getExecutor()))
+                .map(TaskResVO::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(needResolveUserIds)) {
+            return;
+        }
+        List<SysUser> sysUsers = getSysUserList(needResolveUserIds);
+        Map<Long, SysUser> userMap = sysUsers.stream()
+                .collect(Collectors.toMap(SysUser::getUserId, user -> user, (existing, replacement) -> existing));
+        Map<String, String> assignToUpdateMap = new HashMap<>();
+        tasks.forEach(task -> {
+            if (StringUtils.isBlank(task.getExecutor())) {
+                SysUser sysUser = userMap.get(task.getUserId());
+                if (Objects.nonNull(sysUser)) {
+                    String nickName = sysUser.getNickName();
+                    if (StringUtils.isNotBlank(nickName)) {
+                        task.setExecutor(nickName);
+                        if (StringUtils.isNotBlank(task.getTaskId())) {
+                            assignToUpdateMap.put(task.getTaskId(), nickName);
+                        }
+                    }
+                }
+            }
+        });
+        if (!assignToUpdateMap.isEmpty()) {
+            assignToUpdateMap.forEach((taskId, nickName) -> projectTaskMapper.updateAssignTo(taskId, nickName));
+        }
+    }
+
     @Override
     public List<ProjectMemberResVO> queryExecutorList(TaskReqVO taskReqVO) {
         List<ProjectMemberResVO> list = projectMemberMapper.queryExecutorList(taskReqVO.getProjectId());
@@ -298,27 +341,6 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         if (CollectionUtils.isEmpty(list)) {
             return new PageInfo<>(list);
         }
-        // 拿到userids
-        List<Long> userIds = list.stream().map(TaskResVO::getUserId)
-                .distinct()
-                .collect(Collectors.toList());
-        SysUserDTO sysUserDTO = new SysUserDTO();
-        sysUserDTO.setUserIds(userIds);
-        if (StringUtils.isNotEmpty(taskReqVO.getExecutor())) {
-            sysUserDTO.setNickName(taskReqVO.getExecutor());
-        }
-        if (StringUtils.isNotEmpty(taskReqVO.getCreatedBy())) {
-            sysUserDTO.setNickName(taskReqVO.getCreatedBy());
-        }
-        R<List<SysUserVO>> userResult = userFeignService.listOfInner(sysUserDTO, SecurityConstants.INNER);
-
-        if (Objects.isNull(userResult) || CollectionUtils.isEmpty(userResult.getData())) {
-            throw new ServiceException("远程调用查询用户列表：" + userIds + " 失败");
-        }
-        List<SysUserVO> userVOList = userResult.getData();
-
-        // 匹配设置值
-        Map<Long, SysUserVO> userMap = userVOList.stream().collect(Collectors.toMap(SysUserVO::getUserId, a -> a));
         list.forEach(a -> {
             WorkFlowable workFlowable = new WorkFlowable();
             workFlowable.setTaskId(a.getTaskProcessId());
@@ -333,13 +355,8 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             if (a.getEndTime() != null && a.getBeginTime() != null) {
                 a.setPeriod(DateUtils.differentDaysByMillisecond(a.getEndTime(), a.getBeginTime()));
             }
-            // 设置用户信息
-            SysUserVO sysUserVO = userMap.get(a.getUserId());
-            if (Objects.nonNull(sysUserVO)) {
-                a.setExecutor(sysUserVO.getNickName());
-                // createdBy 已由SQL查询正确设置，不需要覆盖
-            }
         });
+        fillExecutorInfo(list);
         return new PageInfo<>(list);
     }
 
@@ -360,6 +377,8 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             projectTask.setTaskPid(taskReqVO.getTaskId());
         }
         BeanUtils.copyProperties(taskReqVO, projectTask);
+        String executorNickName = getExecutorNickName(taskReqVO.getUserId());
+        projectTask.setAssignTo(executorNickName);
         projectTask.setCreatedBy(SecurityUtils.getUsername());
         projectTask.setCreatedTime(new Date());
         projectTask.setUpdatedBy(SecurityUtils.getUsername());
@@ -374,7 +393,11 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         if (taskReqVO.getUserId() != null && !Objects.equals(taskReqVO.getUserId(), SecurityUtils.getUserId())) {
             insertMember(projectTask.getId(), 0, taskReqVO.getUserId());
             // 添加日志
-            saveLog("invitePartakeTask", projectTask.getId(), taskReqVO.getProjectId(), taskReqVO.getTaskName(), "邀请 " + getSysUserList(Collections.singletonList(taskReqVO.getUserId())).get(0).getNickName() + " 参与任务", taskReqVO.getUserId());
+            String inviteeName = executorNickName;
+            if (StringUtils.isBlank(inviteeName)) {
+                inviteeName = getExecutorNickName(taskReqVO.getUserId());
+            }
+            saveLog("invitePartakeTask", projectTask.getId(), taskReqVO.getProjectId(), taskReqVO.getTaskName(), "邀请 " + inviteeName + " 参与任务", taskReqVO.getUserId());
         }
         // 4、任务指派消息提醒
         extracted(taskReqVO.getTaskName(), taskReqVO.getUserId(), SecurityUtils.getUsername(), projectTask.getId());
@@ -440,6 +463,7 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         BeanUtils.copyProperties(taskReqVO, projectTask);
         projectTask.setId(taskReqVO.getTaskId());
         projectTask.setProjectId(taskReqVO.getProjectId());
+        projectTask.setAssignTo(getExecutorNickName(taskReqVO.getUserId()));
         projectTask.setUpdatedTime(new Date());
         projectTaskMapper.updateById(projectTask);
 
@@ -791,6 +815,7 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             qw2.eq(ProjectStage::getProjectId, projectId).orderByAsc(ProjectStage::getStageCode);
             projectTask.setProjectStageId(projectStageMapper.selectList(qw2).get(0).getId());
             projectTask.setUserId(sysUser.getUserId());
+            projectTask.setAssignTo(sysUser.getNickName());
             projectTask.setCreatedBy(SecurityUtils.getUsername());
             projectTask.setCreatedTime(new Date());
             projectTask.setUpdatedBy(SecurityUtils.getUsername());
@@ -861,27 +886,6 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         if (CollectionUtils.isEmpty(list)) {
             return new PageInfo<>(list);
         }
-        // 拿到userids
-        List<Long> userIds = list.stream().map(TaskResVO::getUserId)
-                .distinct()
-                .collect(Collectors.toList());
-        SysUserDTO sysUserDTO = new SysUserDTO();
-        sysUserDTO.setUserIds(userIds);
-        if (StringUtils.isNotEmpty(taskReqVO.getExecutor())) {
-            sysUserDTO.setNickName(taskReqVO.getExecutor());
-        }
-        if (StringUtils.isNotEmpty(taskReqVO.getCreatedBy())) {
-            sysUserDTO.setNickName(taskReqVO.getCreatedBy());
-        }
-        R<List<SysUserVO>> userResult = userFeignService.listOfInner(sysUserDTO, SecurityConstants.INNER);
-
-        if (Objects.isNull(userResult) || CollectionUtils.isEmpty(userResult.getData())) {
-            throw new ServiceException("远程调用查询用户列表：" + userIds + " 失败");
-        }
-        List<SysUserVO> userVOList = userResult.getData();
-
-        // 匹配设置值
-        Map<Long, SysUserVO> userMap = userVOList.stream().collect(Collectors.toMap(SysUserVO::getUserId, a -> a));
         list.forEach(a -> {
             a.setTaskPriorityName(ProjectTaskPriorityEnum.getStatusNameByStatus(a.getTaskPriority()));
             a.setStatusName(ProjectTaskStatusEnum.getStatusNameByStatus(a.getStatus()));
@@ -896,13 +900,8 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             workFlowable.setProcInsId(a.getProcInsId());
             workFlowable.setDefinitionId(a.getDefinitionId());
             a.setWorkFlowable(workFlowable);
-            // 设置用户信息
-            SysUserVO sysUserVO = userMap.get(a.getUserId());
-            if (Objects.nonNull(sysUserVO)) {
-                a.setExecutor(sysUserVO.getNickName());
-                // createdBy 已由SQL查询正确设置，不需要覆盖
-            }
         });
+        fillExecutorInfo(list);
         return new PageInfo<>(list);
     }
 

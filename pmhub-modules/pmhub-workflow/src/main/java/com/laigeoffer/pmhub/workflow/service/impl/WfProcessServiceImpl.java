@@ -17,6 +17,7 @@ import com.laigeoffer.pmhub.base.core.core.page.Table2DataInfo;
 import com.laigeoffer.pmhub.base.core.enums.ProjectStatusEnum;
 import com.laigeoffer.pmhub.base.core.enums.ProjectTaskStatusEnum;
 import com.laigeoffer.pmhub.base.core.exception.ServiceException;
+import com.laigeoffer.pmhub.base.core.utils.DateUtils;
 import com.laigeoffer.pmhub.base.core.utils.JsonUtils;
 import com.laigeoffer.pmhub.base.security.utils.SecurityUtils;
 import com.laigeoffer.pmhub.base.core.utils.StringUtils;
@@ -330,7 +331,8 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         }
         
         // 3. 合并结果并按创建时间排序
-        flowList.sort((a, b) -> {
+        List<WfTaskVo> filteredList = filterTodoTasks(flowList, processQuery);
+        filteredList.sort((a, b) -> {
             if (a.getCreateTime() == null && b.getCreateTime() == null) {
                 return 0;
             }
@@ -344,14 +346,82 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         });
         
         // 4. 分页处理
-        int total = flowList.size();
+        int total = filteredList.size();
         page.setTotal(total);
         int offset = pageQuery.getPageSize() * (pageQuery.getPageNum() - 1);
         int end = Math.min(offset + pageQuery.getPageSize(), total);
-        List<WfTaskVo> pagedList = offset < total ? flowList.subList(offset, end) : new ArrayList<>();
+        List<WfTaskVo> pagedList = offset < total ? filteredList.subList(offset, end) : new ArrayList<>();
         page.setRecords(pagedList);
         
         return Table2DataInfo.build(page);
+    }
+
+    private List<WfTaskVo> filterTodoTasks(List<WfTaskVo> tasks, ProcessQuery processQuery) {
+        if (CollectionUtils.isEmpty(tasks) || processQuery == null) {
+            return tasks;
+        }
+        String keyword = processQuery.getProcessName();
+        boolean hasKeyword = StringUtils.isNotBlank(keyword);
+        Map<String, Object> params = processQuery.getParams();
+        Date beginTime = params != null ? DateUtils.parseDate(params.get("beginTime")) : null;
+        Date endTime = params != null ? DateUtils.parseDate(params.get("endTime")) : null;
+        return tasks.stream()
+                .filter(task -> {
+                    if (hasKeyword) {
+                        boolean match = StringUtils.containsIgnoreCase(task.getProcDefName(), keyword)
+                                || StringUtils.containsIgnoreCase(task.getTaskName(), keyword);
+                        if (!match) {
+                            return false;
+                        }
+                    }
+                    Date createTime = task.getCreateTime();
+                    if (beginTime != null) {
+                        if (createTime == null || createTime.before(beginTime)) {
+                            return false;
+                        }
+                    }
+                    if (endTime != null) {
+                        if (createTime == null || createTime.after(endTime)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<WfTaskVo> filterFinishedTasks(List<WfTaskVo> tasks, ProcessQuery processQuery) {
+        if (CollectionUtils.isEmpty(tasks) || processQuery == null) {
+            return tasks;
+        }
+        String keyword = processQuery.getProcessName();
+        boolean hasKeyword = StringUtils.isNotBlank(keyword);
+        Map<String, Object> params = processQuery.getParams();
+        Date beginTime = params != null ? DateUtils.parseDate(params.get("beginTime")) : null;
+        Date endTime = params != null ? DateUtils.parseDate(params.get("endTime")) : null;
+        return tasks.stream()
+                .filter(task -> {
+                    if (hasKeyword) {
+                        boolean match = StringUtils.containsIgnoreCase(task.getProcDefName(), keyword)
+                                || StringUtils.containsIgnoreCase(task.getTaskName(), keyword);
+                        if (!match) {
+                            return false;
+                        }
+                    }
+                    Date finishTime = task.getFinishTime();
+                    if (beginTime != null) {
+                        if (finishTime == null || finishTime.before(beginTime)) {
+                            return false;
+                        }
+                    }
+                    if (endTime != null) {
+                        if (finishTime == null || finishTime.after(endTime)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -524,7 +594,8 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         }
         
         // 3. 合并结果并按完成时间排序
-        allFinishedTasks.sort((a, b) -> {
+        List<WfTaskVo> filteredTasks = filterFinishedTasks(allFinishedTasks, processQuery);
+        filteredTasks.sort((a, b) -> {
             Date aTime = a.getFinishTime();
             Date bTime = b.getFinishTime();
             if (aTime == null && bTime == null) {
@@ -540,10 +611,10 @@ public class WfProcessServiceImpl extends FlowServiceFactory implements IWfProce
         });
         
         // 4. 手动分页
-        int total = allFinishedTasks.size();
+        int total = filteredTasks.size();
         int offset = pageQuery.getPageSize() * (pageQuery.getPageNum() - 1);
         int endIndex = Math.min(offset + pageQuery.getPageSize(), total);
-        List<WfTaskVo> pagedList = offset < total ? allFinishedTasks.subList(offset, endIndex) : new ArrayList<>();
+        List<WfTaskVo> pagedList = offset < total ? filteredTasks.subList(offset, endIndex) : new ArrayList<>();
         
         page.setTotal(total);
         page.setRecords(pagedList);

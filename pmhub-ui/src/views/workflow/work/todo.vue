@@ -177,7 +177,7 @@ export default {
       queryParams: {
         pageNum: 1,
         pageSize: 10,
-        name: null,
+        processName: null,
         category: null
       },
       // 表单参数

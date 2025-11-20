@@ -16,6 +16,7 @@ import com.laigeoffer.pmhub.base.core.core.domain.dto.ApprovalSetDTO;
 import com.laigeoffer.pmhub.workflow.domain.dto.MaterialsApprovalSetDTO;
 import com.laigeoffer.pmhub.workflow.domain.vo.MaterialsApprovalSetVO;
 import com.laigeoffer.pmhub.workflow.mapper.WfApprovalSetMapper;
+import com.laigeoffer.pmhub.workflow.mapper.WfApprovalTaskMapper;
 import com.laigeoffer.pmhub.workflow.mapper.WfMaterialsScrappedProcessMapper;
 import com.laigeoffer.pmhub.workflow.service.IWfDeployService;
 import com.laigeoffer.pmhub.workflow.utils.ProcessUtils;
@@ -48,6 +49,7 @@ public class WfDeployServiceImpl implements IWfDeployService {
     @Autowired(required = false)
     private org.flowable.engine.TaskService taskService;
     private final WfApprovalSetMapper wfApprovalSetMapper;
+    private final WfApprovalTaskMapper wfApprovalTaskMapper;
     private final WfMaterialsScrappedProcessMapper wfMaterialsScrappedProcessMapper;
     private final ProjectTaskProcessFeignService projectTaskProcessFeignService;
 
@@ -186,6 +188,9 @@ public class WfDeployServiceImpl implements IWfDeployService {
     public boolean updateApprovalSet2(ApprovalSetDTO approvalSetDTO, String type) {
         log.info("开始更新审批设置，taskId: {}, approved: {}, approvalInfo: {}, type: {}", 
                 approvalSetDTO.getTaskId(), approvalSetDTO.getApproved(), approvalSetDTO.getApprovalInfo(), type);
+        String targetExtraId = StringUtils.isNotBlank(approvalSetDTO.getTaskId()) ? approvalSetDTO.getTaskId() : approvalSetDTO.getExtraId();
+        String approvalType = StringUtils.isNotBlank(approvalSetDTO.getType()) ? approvalSetDTO.getType() : ProjectStatusEnum.TASK.getStatusName();
+        ensureSimpleApprovalEditable(targetExtraId, approvalType);
         LambdaQueryWrapper<WfApprovalSet> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(WfApprovalSet::getExtraId, approvalSetDTO.getTaskId()).eq(WfApprovalSet::getType, ProjectStatusEnum.TASK.getStatusName());
         WfApprovalSet wfApprovalSet = wfApprovalSetMapper.selectOne(queryWrapper);
@@ -367,6 +372,7 @@ public class WfDeployServiceImpl implements IWfDeployService {
     public boolean insertOrUpdateApprovalSet(String extraId, String type, String approved, String definitionId, String deploymentId) {
         LambdaQueryWrapper<WfApprovalSet> qw = new LambdaQueryWrapper<>();
         qw.eq(WfApprovalSet::getExtraId, extraId).eq(WfApprovalSet::getType, type);
+        ensureSimpleApprovalEditable(extraId, type);
         WfApprovalSet mas = wfApprovalSetMapper.selectOne(qw);
         if (mas != null) {
             mas.setApproved(approved);
@@ -399,6 +405,7 @@ public class WfDeployServiceImpl implements IWfDeployService {
     public boolean insertOrUpdateApprovalSet(ApprovalSetDTO approvalSetDTO) {
         LambdaQueryWrapper<WfApprovalSet> qw = new LambdaQueryWrapper<>();
         qw.eq(WfApprovalSet::getExtraId, approvalSetDTO.getExtraId()).eq(WfApprovalSet::getType, approvalSetDTO.getType());
+        ensureSimpleApprovalEditable(approvalSetDTO.getExtraId(), approvalSetDTO.getType());
         WfApprovalSet mas = wfApprovalSetMapper.selectOne(qw);
         if (mas != null) {
             mas.setApproved(approvalSetDTO.getApproved());
@@ -508,5 +515,18 @@ public class WfDeployServiceImpl implements IWfDeployService {
         wfTaskProcess.setCreatedTime(new Date());
         wfTaskProcess.setUpdatedBy(SecurityUtils.getUsername());
         wfTaskProcess.setUpdatedTime(new Date());
+    }
+
+    /**
+     * 简易审批发起后禁止重复配置审批人，避免数据不一致
+     */
+    private void ensureSimpleApprovalEditable(String extraId, String type) {
+        if (StringUtils.isBlank(extraId) || StringUtils.isBlank(type)) {
+            return;
+        }
+        int pendingCount = wfApprovalTaskMapper.countPendingByExtraIdAndType(extraId, type);
+        if (pendingCount > 0) {
+            throw new ServiceException("该审批已发起，当前待审批完成前不能再次设置审批人");
+        }
     }
 }

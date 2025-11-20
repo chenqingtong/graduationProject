@@ -78,6 +78,7 @@ service.interceptors.response.use(res => {
       fileNameByApi = decodeURIComponent(res.headers['download-filename'])
       return res.data
     }
+    const requestUrl = res.config && res.config.url ? res.config.url : ""
     if (code === 401) {
       if (!isRelogin.show) {
         isRelogin.show = true;
@@ -92,8 +93,12 @@ service.interceptors.response.use(res => {
     }
       return Promise.reject('无效的会话，或者会话已过期，请重新登录。')
     } else if (code === 500) {
-      Message({ message: msg, type: 'error' })
-      return Promise.reject(new Error(msg))
+      let friendlyMsg = msg
+      if (requestUrl.includes("/project/task/updateApprovalSet") && msg === "远程调用审批服务失败") {
+        friendlyMsg = "设置失败：该审批已发起，当前待审批完成前不能再次设置审批人"
+      }
+      Message({ message: friendlyMsg, type: 'error' })
+      return Promise.reject(new Error(friendlyMsg))
     } else if (code === 601) {
       Message({ message: msg, type: 'warning' })
       return Promise.reject('error')

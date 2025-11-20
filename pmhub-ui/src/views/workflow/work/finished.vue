@@ -1,10 +1,10 @@
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryForm" :inline="true" v-show="showSearch" label-width="68px">
-      <el-form-item label="流程名称" prop="processName">
+      <el-form-item label="任务名称" prop="processName">
         <el-input
           v-model="queryParams.processName"
-          placeholder="请输入流程名称"
+          placeholder="请输入任务名称"
           clearable
           size="small"
           @keyup.enter.native="handleQuery"
@@ -119,15 +119,8 @@ export default {
       queryParams: {
         pageNum: 1,
         pageSize: 10,
-        name: null,
-        category: null,
-        key: null,
-        tenantId: null,
-        deployTime: null,
-        derivedFrom: null,
-        derivedFromRoot: null,
-        parentDeploymentId: null,
-        engineVersion: null
+        processName: null,
+        category: null
       },
       // 表单参数
       form: {},
@@ -145,7 +138,7 @@ export default {
     /** 查询流程定义列表 */
     getList() {
       this.loading = true;
-      listFinishedProcess(this.queryParams).then(response => {
+      listFinishedProcess(this.addDateRange(this.queryParams, this.dateRange)).then(response => {
         this.finishedList = response.rows;
         this.total = response.total;
         this.loading = false;
@@ -230,9 +223,7 @@ export default {
     },
     /** 导出按钮操作 */
     handleExport() {
-      this.download('workflow/process/finishedExport', {
-        ...this.queryParams
-      }, `wf_finished_process_${new Date().getTime()}.xlsx`)
+      this.download('workflow/process/finishedExport', this.addDateRange(this.queryParams, this.dateRange), `wf_finished_process_${new Date().getTime()}.xlsx`)
     }
   }
 };

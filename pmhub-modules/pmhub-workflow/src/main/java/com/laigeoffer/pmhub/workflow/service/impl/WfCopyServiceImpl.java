@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import com.laigeoffer.pmhub.base.core.exception.ServiceException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -75,13 +76,23 @@ public class WfCopyServiceImpl implements IWfCopyService {
      */
     @Override
     public Table2DataInfo<WfCopyVo> selectPageList(WfCopyBo bo, PageQuery pageQuery) {
-        LambdaQueryWrapper<WfCopy> lqw = buildQueryWrapper(bo);
+        boolean hasKeyword = StringUtils.isNotBlank(bo.getProcessName());
+        LambdaQueryWrapper<WfCopy> lqw = buildQueryWrapper(bo, !hasKeyword);
         lqw.orderByDesc(WfCopy::getCreateTime);
-        Page<WfCopyVo> result = baseMapper.selectVoPage(pageQuery.build(), lqw);
-        if (CollUtil.isNotEmpty(result.getRecords())) {
-            enrichCopyRecords(result.getRecords());
+        if (hasKeyword) {
+            List<WfCopyVo> list = baseMapper.selectVoList(lqw);
+            if (CollUtil.isNotEmpty(list)) {
+                enrichCopyRecords(list);
+                list = filterCopyRecords(list, bo.getProcessName());
+            }
+            return buildManualPage(list, pageQuery);
+        } else {
+            Page<WfCopyVo> result = baseMapper.selectVoPage(pageQuery.build(), lqw);
+            if (CollUtil.isNotEmpty(result.getRecords())) {
+                enrichCopyRecords(result.getRecords());
+            }
+            return Table2DataInfo.build(result);
         }
-        return Table2DataInfo.build(result);
     }
 
     /**
@@ -92,18 +103,24 @@ public class WfCopyServiceImpl implements IWfCopyService {
      */
     @Override
     public List<WfCopyVo> selectList(WfCopyBo bo) {
-        LambdaQueryWrapper<WfCopy> lqw = buildQueryWrapper(bo);
+        boolean hasKeyword = StringUtils.isNotBlank(bo.getProcessName());
+        LambdaQueryWrapper<WfCopy> lqw = buildQueryWrapper(bo, !hasKeyword);
         List<WfCopyVo> list = baseMapper.selectVoList(lqw);
         if (CollUtil.isNotEmpty(list)) {
             enrichCopyRecords(list);
+            if (hasKeyword) {
+                list = filterCopyRecords(list, bo.getProcessName());
+            }
         }
         return list;
     }
 
-    private LambdaQueryWrapper<WfCopy> buildQueryWrapper(WfCopyBo bo) {
+    private LambdaQueryWrapper<WfCopy> buildQueryWrapper(WfCopyBo bo, boolean enableProcessNameFilter) {
         LambdaQueryWrapper<WfCopy> lqw = Wrappers.lambdaQuery();
         lqw.eq(bo.getUserId() != null, WfCopy::getUserId, bo.getUserId());
-        lqw.like(StringUtils.isNotBlank(bo.getProcessName()), WfCopy::getProcessName, bo.getProcessName());
+        if (enableProcessNameFilter) {
+            lqw.like(StringUtils.isNotBlank(bo.getProcessName()), WfCopy::getProcessName, bo.getProcessName());
+        }
         lqw.like(StringUtils.isNotBlank(bo.getOriginatorName()), WfCopy::getOriginatorName, bo.getOriginatorName());
         return lqw;
     }
@@ -164,6 +181,36 @@ public class WfCopyServiceImpl implements IWfCopyService {
                 log.info("未获取到任务名称，extraId={}", extraId);
             }
         }
+    }
+
+    private List<WfCopyVo> filterCopyRecords(List<WfCopyVo> records, String keyword) {
+        if (CollUtil.isEmpty(records) || StringUtils.isBlank(keyword)) {
+            return records;
+        }
+        return records.stream()
+            .filter(record -> StringUtils.containsIgnoreCase(record.getProcessName(), keyword)
+                || StringUtils.containsIgnoreCase(record.getTaskName(), keyword)
+                || StringUtils.containsIgnoreCase(record.getTitle(), keyword))
+            .collect(Collectors.toList());
+    }
+
+    private Table2DataInfo<WfCopyVo> buildManualPage(List<WfCopyVo> records, PageQuery pageQuery) {
+        int pageNum = (pageQuery == null || pageQuery.getPageNum() == null) ? PageQuery.DEFAULT_PAGE_NUM : pageQuery.getPageNum();
+        int pageSize = (pageQuery == null || pageQuery.getPageSize() == null) ? PageQuery.DEFAULT_PAGE_SIZE : pageQuery.getPageSize();
+        if (pageNum <= 0) {
+            pageNum = PageQuery.DEFAULT_PAGE_NUM;
+        }
+        if (pageSize <= 0) {
+            pageSize = PageQuery.DEFAULT_PAGE_SIZE;
+        }
+        List<WfCopyVo> safeRecords = CollUtil.isNotEmpty(records) ? records : Collections.emptyList();
+        int total = safeRecords.size();
+        int fromIndex = Math.min(pageSize * (pageNum - 1), total);
+        int toIndex = Math.min(fromIndex + pageSize, total);
+        List<WfCopyVo> pageRecords = safeRecords.subList(fromIndex, toIndex);
+        Page<WfCopyVo> page = new Page<>(pageNum, pageSize, total);
+        page.setRecords(pageRecords);
+        return Table2DataInfo.build(page);
     }
 
     @Override

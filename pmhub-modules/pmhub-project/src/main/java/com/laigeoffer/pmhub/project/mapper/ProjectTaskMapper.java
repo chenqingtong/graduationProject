@@ -34,4 +34,6 @@ public interface ProjectTaskMapper extends BaseMapper<ProjectTask> {
     Integer queryProjectStatus(@Param("projectId") String projectId);
     List<Project> queryProjectsStatus(@Param("projectIds") List<String> projectIds);
 
+    int updateAssignTo(@Param("taskId") String taskId, @Param("assignTo") String assignTo);
+
 }
