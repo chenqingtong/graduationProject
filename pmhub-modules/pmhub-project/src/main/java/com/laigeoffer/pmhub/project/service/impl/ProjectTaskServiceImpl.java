@@ -371,6 +371,8 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             throw new ServiceException("归属项目已暂停，无法新增任务");
         }
 
+        validateTaskTime(taskReqVO.getBeginTime(), taskReqVO.getEndTime(), taskReqVO.getCloseTime());
+
         // 1、添加任务
         ProjectTask projectTask = new ProjectTask();
         if (StringUtils.isNotBlank(taskReqVO.getTaskId())) {
@@ -446,6 +448,8 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         if (ProjectStatusEnum.PAUSE.getStatus().equals(projectTaskMapper.queryProjectStatus(taskReqVO.getProjectId()))) {
             throw new ServiceException("该任务不能切换到已暂停的项目");
         }
+
+        validateTaskTime(taskReqVO.getBeginTime(), taskReqVO.getEndTime(), taskReqVO.getCloseTime());
          // TODO: 2024.06.24 暂时注释掉审批过滤，待远程调用
 //        if (!Objects.equals(oldObj.getStatus(), taskReqVO.getStatus())) {
 //            // 根据 taskId 去查询 是否需要审批
@@ -551,6 +555,15 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             }
             projectTaskMapper.updateById(projectTask);
         });
+    }
+
+    private void validateTaskTime(Date beginTime, Date endTime, Date closeTime) {
+        if (Objects.nonNull(beginTime) && Objects.nonNull(endTime) && beginTime.after(endTime)) {
+            throw new ServiceException("预计开始日期不能晚于预计完成日期");
+        }
+        if (Objects.nonNull(endTime) && Objects.nonNull(closeTime) && endTime.after(closeTime)) {
+            throw new ServiceException("预计完成日期不能晚于截止日期");
+        }
     }
 
     @Override
