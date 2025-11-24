@@ -1,13 +1,18 @@
 package com.laigeoffer.pmhub.project.controller;
 
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.laigeoffer.pmhub.api.workflow.DeployFeignService;
 import com.laigeoffer.pmhub.api.workflow.ProcessFeignService;
+import com.laigeoffer.pmhub.base.core.config.redis.RedisService;
+import com.laigeoffer.pmhub.base.core.constant.CacheConstants;
 import com.laigeoffer.pmhub.base.core.constant.SecurityConstants;
 import com.laigeoffer.pmhub.base.core.core.domain.AjaxResult;
 import com.laigeoffer.pmhub.base.core.core.domain.dto.ApprovalSetDTO;
 import com.laigeoffer.pmhub.base.core.core.domain.dto.ProjectProcessDTO;
 import com.laigeoffer.pmhub.base.security.annotation.RequiresPermissions;
 import com.laigeoffer.pmhub.project.domain.Project;
+import com.laigeoffer.pmhub.project.domain.vo.project.DoingProjectVO;
 import com.laigeoffer.pmhub.project.domain.vo.project.ProjectReqVO;
 import com.laigeoffer.pmhub.project.domain.vo.project.ProjectStatisticsResVO;
 import com.laigeoffer.pmhub.project.domain.vo.project.ProjectVO;
@@ -18,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author chenqingtong
@@ -35,6 +41,8 @@ public class ProjectController {
     private ProcessFeignService processService;
     @Autowired
     private DeployFeignService wfDeployService;
+    @Autowired
+    private RedisService redisService;
 
     /**
      * 增加项目
@@ -45,6 +53,8 @@ public class ProjectController {
     @PostMapping("/add")
     public AjaxResult add(@RequestBody Project project) {
         projectService.saveProject(project);
+        // 清除首页数据缓存
+        clearHomePageCache();
         return AjaxResult.success();
     }
 
@@ -57,6 +67,8 @@ public class ProjectController {
     @PostMapping("/edit")
     public AjaxResult edit(@RequestBody Project project) {
         projectService.editProject(project);
+        // 清除首页数据缓存
+        clearHomePageCache();
         return AjaxResult.success();
     }
 
@@ -78,7 +90,26 @@ public class ProjectController {
 //    @RequiresPermissions("project:manage:statistics")
     @GetMapping("/statistics")
     public AjaxResult statistics() {
-        ProjectStatisticsResVO projectStatisticsResVO = new ProjectStatisticsResVO();
+        // 构建缓存key
+        String cacheKey = CacheConstants.PROJECT_STATISTICS_KEY;
+        ProjectStatisticsResVO projectStatisticsResVO = null;
+        
+        // 先查缓存
+        Object cachedData = redisService.getCacheObject(cacheKey);
+        if (cachedData != null) {
+            try {
+                // 从Redis读取的是JSONObject，需要转换为目标对象
+                JSONObject jsonObject = (JSONObject) cachedData;
+                projectStatisticsResVO = jsonObject.toJavaObject(ProjectStatisticsResVO.class);
+                return AjaxResult.success(projectStatisticsResVO);
+            } catch (Exception e) {
+                // 缓存反序列化失败，清除缓存并继续查询数据库
+                redisService.deleteObject(cacheKey);
+            }
+        }
+        
+        // 缓存未命中，查询数据库
+        projectStatisticsResVO = new ProjectStatisticsResVO();
         // 项目总数
         projectStatisticsResVO.setProjectNum(projectService.countProjectNum());
         // 任务总数
@@ -91,6 +122,10 @@ public class ProjectController {
         projectStatisticsResVO.setProjectRankVOList(projectService.queryProjectRankList());
         // 任务状态统计
         projectStatisticsResVO.setTaskStatisticsVOList(projectTaskService.queryTaskStatisticsList());
+        
+        // 写入缓存，过期时间5分钟
+        redisService.setCacheObject(cacheKey, projectStatisticsResVO, 5, TimeUnit.MINUTES);
+        
         return AjaxResult.success(projectStatisticsResVO);
     }
 
@@ -121,7 +156,30 @@ public class ProjectController {
 //    @RequiresPermissions("project:manage:doing")
     @GetMapping("/doing")
     public AjaxResult queryDoingProject() {
-        return AjaxResult.success(projectService.queryDoingProject());
+        // 构建缓存key
+        String cacheKey = CacheConstants.PROJECT_DOING_KEY;
+        
+        // 先查缓存
+        Object cachedData = redisService.getCacheObject(cacheKey);
+        if (cachedData != null) {
+            try {
+                // 从Redis读取的是JSONArray，需要转换为目标对象列表
+                JSONArray jsonArray = (JSONArray) cachedData;
+                java.util.List<DoingProjectVO> result = jsonArray.toList(DoingProjectVO.class);
+                return AjaxResult.success(result);
+            } catch (Exception e) {
+                // 缓存反序列化失败，清除缓存并继续查询数据库
+                redisService.deleteObject(cacheKey);
+            }
+        }
+        
+        // 缓存未命中，查询数据库
+        java.util.List<DoingProjectVO> result = projectService.queryDoingProject();
+        
+        // 写入缓存，过期时间5分钟
+        redisService.setCacheObject(cacheKey, result, 5, TimeUnit.MINUTES);
+        
+        return AjaxResult.success(result);
     }
 
     /**
@@ -132,7 +190,10 @@ public class ProjectController {
     @RequiresPermissions("project:manage:delete")
     @DeleteMapping("/delete")
     public AjaxResult deleteProject(@RequestBody ProjectVO projectVO) {
-        return AjaxResult.success(projectService.deleteProject(projectVO));
+        AjaxResult result = AjaxResult.success(projectService.deleteProject(projectVO));
+        // 清除首页数据缓存
+        clearHomePageCache();
+        return result;
     }
 
     /**
@@ -156,6 +217,8 @@ public class ProjectController {
     @PostMapping("/archive")
     public AjaxResult archived(@RequestBody ProjectVO projectVO) {
         projectService.archived(projectVO.getProjectId());
+        // 清除首页数据缓存
+        clearHomePageCache();
         return AjaxResult.success();
     }
 
@@ -168,6 +231,8 @@ public class ProjectController {
     @PostMapping("/cancelArchive")
     public AjaxResult cancelArchived(@RequestBody ProjectVO projectVO) {
         projectService.cancelArchived(projectVO.getProjectId());
+        // 清除首页数据缓存
+        clearHomePageCache();
         return AjaxResult.success();
     }
 
@@ -231,6 +296,22 @@ public class ProjectController {
         processService.startProjectProcess(request,SecurityConstants.INNER);
         return AjaxResult.success("流程启动成功");
 
+    }
+
+    /**
+     * 清除首页数据缓存
+     * 当项目或任务数据变更时调用
+     */
+    private void clearHomePageCache() {
+        try {
+            // 清除统计数据缓存
+            redisService.deleteObject(CacheConstants.PROJECT_STATISTICS_KEY);
+            // 清除进行中项目列表缓存
+            redisService.deleteObject(CacheConstants.PROJECT_DOING_KEY);
+        } catch (Exception e) {
+            // 清除缓存失败不影响主流程，记录日志即可
+            // log.warn("清除首页数据缓存失败", e);
+        }
     }
 
 }

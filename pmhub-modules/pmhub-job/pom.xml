@@ -88,6 +88,12 @@
             <artifactId>pmhub-base-swagger</artifactId>
         </dependency>
 
+        <!-- 项目模块远程接口 -->
+        <dependency>
+            <groupId>com.laigeoffer.pmhub-cloud</groupId>
+            <artifactId>pmhub-api-project</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

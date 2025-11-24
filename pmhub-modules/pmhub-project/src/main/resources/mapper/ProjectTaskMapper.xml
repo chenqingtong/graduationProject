@@ -169,21 +169,21 @@
         </if>
     </select>
     <select id="queryTaskNotifyJob" resultType="com.laigeoffer.pmhub.project.domain.vo.project.task.TaskNotifyDTO">
-        select p.id as projectId,p.msg_notify, p.notify_day,p.status,pt.id as taskId,pt.task_name,pt.user_id,pt.close_time,su.user_wx_name,su.user_name
+        select p.id as projectId,p.msg_notify, p.notify_day,p.status,pt.id as taskId,pt.task_name,pt.user_id,pt.close_time,su.user_wx_name,su.user_name,su.email
         from pmhub_project p
         left join pmhub_project_task pt on p.id = pt.project_id
-        left join sys_user su on pt.user_id = su.user_id
+        left join `pmhub-system`.sys_user su on pt.user_id = su.user_id
         where p.deleted = 0 and p.msg_notify = 1 and pt.deleted = 0 and pt.execute_status != 2
     </select>
     <select id="queryTaskNotifyJob2" resultType="com.laigeoffer.pmhub.project.domain.vo.project.task.TaskNotifyDTO">
-        select p.id as projectId,p.msg_notify, p.notify_day,p.status,pt.id as taskId,pt.task_name,pt.user_id,pt.close_time,su.user_wx_name,su.user_name
+        select p.id as projectId,p.msg_notify, p.notify_day,p.status,pt.id as taskId,pt.task_name,pt.user_id,pt.close_time,su.user_wx_name,su.user_name,su.email
         from pmhub_project p
                  left join pmhub_project_task pt on p.id = pt.project_id
-                 left join sys_user su on pt.user_id = su.user_id
+                 left join `pmhub-system`.sys_user su on pt.user_id = su.user_id
         where p.deleted = 0 and pt.deleted = 0 and pt.execute_status != 2
     </select>
     <select id="queryVxUserName" resultType="java.lang.String">
-        select user_wx_name from sys_user where user_id = #{userId}
+        select user_wx_name from `pmhub-system`.sys_user where user_id = #{userId}
     </select>
 
 

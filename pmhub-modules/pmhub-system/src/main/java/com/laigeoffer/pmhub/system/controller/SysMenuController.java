@@ -1,6 +1,8 @@
 package com.laigeoffer.pmhub.system.controller;
 
 import com.laigeoffer.pmhub.base.core.annotation.Log;
+import com.laigeoffer.pmhub.base.core.config.redis.RedisService;
+import com.laigeoffer.pmhub.base.core.constant.CacheConstants;
 import com.laigeoffer.pmhub.base.core.constant.UserConstants;
 import com.laigeoffer.pmhub.base.core.core.controller.BaseController;
 import com.laigeoffer.pmhub.base.core.core.domain.AjaxResult;
@@ -10,6 +12,7 @@ import com.laigeoffer.pmhub.base.core.enums.BusinessType;
 import com.laigeoffer.pmhub.base.core.utils.StringUtils;
 import com.laigeoffer.pmhub.base.security.annotation.RequiresPermissions;
 import com.laigeoffer.pmhub.base.security.utils.SecurityUtils;
+import com.laigeoffer.pmhub.system.domain.vo.RouterVo;
 import com.laigeoffer.pmhub.system.service.ISysMenuService;
 import com.laigeoffer.pmhub.system.service.ISysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +20,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 菜单信息
@@ -31,6 +36,9 @@ public class SysMenuController extends BaseController {
 
     @Autowired
     private ISysUserService userService;
+
+    @Autowired
+    private RedisService redisService;
 
     /**
      * 获取菜单列表
@@ -88,7 +96,12 @@ public class SysMenuController extends BaseController {
             return error("新增菜单'" + menu.getMenuName() + "'失败，地址必须以http(s)://开头");
         }
         menu.setCreateBy(SecurityUtils.getUsername());
-        return toAjax(menuService.insertMenu(menu));
+        int result = menuService.insertMenu(menu);
+        if (result > 0) {
+            // 菜单新增后，清除所有用户的菜单路由缓存
+            clearMenuRouterCache();
+        }
+        return toAjax(result);
     }
 
     /**
@@ -106,7 +119,12 @@ public class SysMenuController extends BaseController {
             return error("修改菜单'" + menu.getMenuName() + "'失败，上级菜单不能选择自己");
         }
         menu.setUpdateBy(SecurityUtils.getUsername());
-        return toAjax(menuService.updateMenu(menu));
+        int result = menuService.updateMenu(menu);
+        if (result > 0) {
+            // 菜单修改后，清除所有用户的菜单路由缓存
+            clearMenuRouterCache();
+        }
+        return toAjax(result);
     }
 
     /**
@@ -122,7 +140,12 @@ public class SysMenuController extends BaseController {
         if (menuService.checkMenuExistRole(menuId)) {
             return warn("菜单已分配,不允许删除");
         }
-        return toAjax(menuService.deleteMenuById(menuId));
+        int result = menuService.deleteMenuById(menuId);
+        if (result > 0) {
+            // 菜单删除后，清除所有用户的菜单路由缓存
+            clearMenuRouterCache();
+        }
+        return toAjax(result);
     }
 
     /**
@@ -134,7 +157,41 @@ public class SysMenuController extends BaseController {
     public AjaxResult getRouters() {
         LoginUser loginUser = SecurityUtils.getLoginUser();
         Long userId = loginUser.getUserId();
+        
+        // 构建缓存key：按用户ID缓存
+        String cacheKey = CacheConstants.SYS_MENU_ROUTER_KEY + userId;
+        
+        // 先查缓存
+        List<RouterVo> routers = redisService.getCacheObject(cacheKey);
+        if (routers != null) {
+            return success(routers);
+        }
+        
+        // 缓存未命中，查询数据库
         List<SysMenu> menus = menuService.selectMenuTreeByUserId(userId);
-        return success(menuService.buildMenus(menus));
+        routers = menuService.buildMenus(menus);
+        
+        // 写入缓存，过期时间30分钟（菜单数据变化不频繁）
+        redisService.setCacheObject(cacheKey, routers, 30, TimeUnit.MINUTES);
+        
+        return success(routers);
+    }
+
+    /**
+     * 清除所有用户的菜单路由缓存
+     * 当菜单或角色菜单关联变更时调用
+     */
+    @SuppressWarnings("unchecked")
+    private void clearMenuRouterCache() {
+        try {
+            // 使用Redis的keys命令查找所有菜单路由缓存key（注意：生产环境建议使用SCAN）
+            Set<String> keys = (Set<String>) redisService.redisTemplate.keys(CacheConstants.SYS_MENU_ROUTER_KEY + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisService.deleteObject(keys);
+            }
+        } catch (Exception e) {
+            // 清除缓存失败不影响主流程，记录日志即可
+            // log.warn("清除菜单路由缓存失败", e);
+        }
     }
 }

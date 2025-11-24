@@ -15,6 +15,7 @@ import org.flowable.spring.boot.dmn.DmnEngineAutoConfiguration;
 import org.flowable.spring.boot.idm.IdmEngineAutoConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * @author chenqingtong
@@ -25,6 +26,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @EnablePmFeignClients(defaultConfiguration = ProjectTaskProcessFeignConfig.class)
 @EnableCustomSwagger2
 @EnableDistributedLock // 启用Redisson分布式锁
+@EnableScheduling
 @SpringBootApplication(exclude = {
     ProcessEngineAutoConfiguration.class,
     ProcessEngineServicesAutoConfiguration.class,

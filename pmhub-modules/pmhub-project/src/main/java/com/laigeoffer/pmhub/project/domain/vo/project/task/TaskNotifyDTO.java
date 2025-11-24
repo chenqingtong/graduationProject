@@ -29,6 +29,10 @@ public class TaskNotifyDTO {
      */
     private String userWxName;
     /**
+     * 员工邮箱
+     */
+    private String email;
+    /**
      * 是否逾期提醒
      */
     private Integer msgNotify;
@@ -89,6 +93,14 @@ public class TaskNotifyDTO {
 
     public void setUserWxName(String userWxName) {
         this.userWxName = userWxName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public Integer getMsgNotify() {

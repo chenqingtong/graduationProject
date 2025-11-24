@@ -3,6 +3,8 @@ package com.laigeoffer.pmhub.project.controller;
 import com.laigeoffer.pmhub.api.workflow.DeployFeignService;
 import com.laigeoffer.pmhub.api.workflow.ProcessFeignService;
 import com.laigeoffer.pmhub.base.core.annotation.Anonymous;
+import com.laigeoffer.pmhub.base.core.config.redis.RedisService;
+import com.laigeoffer.pmhub.base.core.constant.CacheConstants;
 import com.laigeoffer.pmhub.base.core.constant.SecurityConstants;
 import com.laigeoffer.pmhub.base.core.core.domain.AjaxResult;
 import com.laigeoffer.pmhub.base.core.core.domain.R;
@@ -48,6 +50,8 @@ public class ProjectTaskController {
     private ProcessFeignService processService;
     @Autowired
     private DeployFeignService wfDeployService;
+    @Autowired
+    private RedisService redisService;
 
     /**
      * 首页-我的任务
@@ -109,6 +113,8 @@ public class ProjectTaskController {
 
         }
         projectTaskService.deleteTask(taskIdsVO);
+        // 清除首页数据缓存
+        clearHomePageCache();
         return AjaxResult.success();
     }
     /**
@@ -141,7 +147,10 @@ public class ProjectTaskController {
     @RequiresPermissions("project:task:add")
     @PostMapping("/task/add")
     public AjaxResult add(@RequestBody TaskReqVO taskReqVO) {
-        return AjaxResult.success(projectTaskService.add(taskReqVO));
+        AjaxResult result = AjaxResult.success(projectTaskService.add(taskReqVO));
+        // 清除首页数据缓存
+        clearHomePageCache();
+        return result;
     }
     /**
      * 添加子任务
@@ -151,7 +160,10 @@ public class ProjectTaskController {
     @RequiresPermissions("project:task:addChildTask")
     @PostMapping("/task/addChildTask")
     public AjaxResult addChildTask(@RequestBody TaskReqVO taskReqVO) {
-        return AjaxResult.success(projectTaskService.add(taskReqVO));
+        AjaxResult result = AjaxResult.success(projectTaskService.add(taskReqVO));
+        // 清除首页数据缓存
+        clearHomePageCache();
+        return result;
     }
 
     /**
@@ -163,6 +175,8 @@ public class ProjectTaskController {
     @PostMapping("/task/edit")
     public AjaxResult edit(@RequestBody TaskReqVO taskReqVO) {
         projectTaskService.edit(taskReqVO);
+        // 清除首页数据缓存
+        clearHomePageCache();
         return AjaxResult.success();
     }
 
@@ -279,6 +293,8 @@ public class ProjectTaskController {
         ExcelUtil<TaskExcelVO> util = new ExcelUtil<>(TaskExcelVO.class);
         List<TaskExcelVO> list = util.importExcel(file.getInputStream());
         projectTaskService.importTask(list);
+        // 清除首页数据缓存
+        clearHomePageCache();
         return AjaxResult.success();
     }
 
@@ -340,6 +356,22 @@ public class ProjectTaskController {
             return AjaxResult.error("远程调用审批服务失败");
         }
         return AjaxResult.success();
+    }
+
+    /**
+     * 清除首页数据缓存
+     * 当项目或任务数据变更时调用
+     */
+    private void clearHomePageCache() {
+        try {
+            // 清除统计数据缓存
+            redisService.deleteObject(CacheConstants.PROJECT_STATISTICS_KEY);
+            // 清除进行中项目列表缓存
+            redisService.deleteObject(CacheConstants.PROJECT_DOING_KEY);
+        } catch (Exception e) {
+            // 清除缓存失败不影响主流程，记录日志即可
+            log.warn("清除首页数据缓存失败", e);
+        }
     }
 
 }

@@ -55,4 +55,19 @@ public class CacheConstants {
      * 登录IP黑名单 cache key
      */
     public static final String SYS_LOGIN_BLACKIPLIST = SYS_CONFIG_KEY + "sys.login.blackIPList";
+
+    /**
+     * 菜单路由 cache key
+     */
+    public static final String SYS_MENU_ROUTER_KEY = "sys_menu_router:";
+
+    /**
+     * 首页统计数据 cache key
+     */
+    public static final String PROJECT_STATISTICS_KEY = "project:statistics:";
+
+    /**
+     * 进行中项目列表 cache key
+     */
+    public static final String PROJECT_DOING_KEY = "project:doing:";
 }

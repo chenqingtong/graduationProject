@@ -1,6 +1,8 @@
 package com.laigeoffer.pmhub.system.service.impl;
 
 import com.laigeoffer.pmhub.base.core.annotation.DataScope;
+import com.laigeoffer.pmhub.base.core.config.redis.RedisService;
+import com.laigeoffer.pmhub.base.core.constant.CacheConstants;
 import com.laigeoffer.pmhub.base.core.constant.UserConstants;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.SysRole;
 import com.laigeoffer.pmhub.base.core.core.domain.entity.SysUser;
@@ -40,6 +42,9 @@ public class SysRoleServiceImpl implements ISysRoleService {
 
     @Autowired
     private SysRoleDeptMapper roleDeptMapper;
+
+    @Autowired
+    private RedisService redisService;
 
     /**
      * 根据条件分页查询角色数据
@@ -207,7 +212,12 @@ public class SysRoleServiceImpl implements ISysRoleService {
     public int insertRole(SysRole role) {
         // 新增角色信息
         roleMapper.insertRole(role);
-        return insertRoleMenu(role);
+        int result = insertRoleMenu(role);
+        if (result > 0) {
+            // 角色菜单关联变更后，清除所有用户的菜单路由缓存
+            clearMenuRouterCache();
+        }
+        return result;
     }
 
     /**
@@ -223,7 +233,12 @@ public class SysRoleServiceImpl implements ISysRoleService {
         roleMapper.updateRole(role);
         // 删除角色与菜单关联
         roleMenuMapper.deleteRoleMenuByRoleId(role.getRoleId());
-        return insertRoleMenu(role);
+        int result = insertRoleMenu(role);
+        if (result > 0) {
+            // 角色菜单关联变更后，清除所有用户的菜单路由缓存
+            clearMenuRouterCache();
+        }
+        return result;
     }
 
     /**
@@ -309,7 +324,12 @@ public class SysRoleServiceImpl implements ISysRoleService {
         roleMenuMapper.deleteRoleMenuByRoleId(roleId);
         // 删除角色与部门关联
         roleDeptMapper.deleteRoleDeptByRoleId(roleId);
-        return roleMapper.deleteRoleById(roleId);
+        int result = roleMapper.deleteRoleById(roleId);
+        if (result > 0) {
+            // 角色菜单关联变更后，清除所有用户的菜单路由缓存
+            clearMenuRouterCache();
+        }
+        return result;
     }
 
     /**
@@ -333,7 +353,12 @@ public class SysRoleServiceImpl implements ISysRoleService {
         roleMenuMapper.deleteRoleMenu(roleIds);
         // 删除角色与部门关联
         roleDeptMapper.deleteRoleDept(roleIds);
-        return roleMapper.deleteRoleByIds(roleIds);
+        int result = roleMapper.deleteRoleByIds(roleIds);
+        if (result > 0) {
+            // 角色菜单关联变更后，清除所有用户的菜单路由缓存
+            clearMenuRouterCache();
+        }
+        return result;
     }
 
     /**
@@ -377,5 +402,23 @@ public class SysRoleServiceImpl implements ISysRoleService {
             list.add(ur);
         }
         return userRoleMapper.batchUserRole(list);
+    }
+
+    /**
+     * 清除所有用户的菜单路由缓存
+     * 当角色菜单关联变更时调用
+     */
+    @SuppressWarnings("unchecked")
+    private void clearMenuRouterCache() {
+        try {
+            // 使用Redis的keys命令查找所有菜单路由缓存key（注意：生产环境建议使用SCAN）
+            Set<String> keys = (Set<String>) redisService.redisTemplate.keys(CacheConstants.SYS_MENU_ROUTER_KEY + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisService.deleteObject(keys);
+            }
+        } catch (Exception e) {
+            // 清除缓存失败不影响主流程，记录日志即可
+            // log.warn("清除菜单路由缓存失败", e);
+        }
     }
 }

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.laigeoffer.pmhub.base.core.enums.ProjectStatusEnum;
 import com.laigeoffer.pmhub.base.core.utils.StringUtils;
+import com.laigeoffer.pmhub.base.notice.domain.dto.EmailNoticeDTO;
+import com.laigeoffer.pmhub.base.notice.service.EmailNoticeService;
 import com.laigeoffer.pmhub.project.domain.ProjectTaskNotify;
 import com.laigeoffer.pmhub.project.domain.vo.project.task.TaskNotifyDTO;
 import com.laigeoffer.pmhub.project.mapper.ProjectTaskMapper;
@@ -16,7 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 
 
@@ -34,6 +38,10 @@ public class TaskNotifyJob {
     private ProjectTaskMapper projectTaskMapper;
     @Autowired
     private ProjectTaskNotifyMapper projectTaskNotifyMapper;
+    @Autowired
+    private EmailNoticeService emailNoticeService;
+
+    private static final DateTimeFormatter DEADLINE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Scheduled(cron = "0 0 9 * * ?")
     @Transactional(rollbackFor = Exception.class)
@@ -41,9 +49,13 @@ public class TaskNotifyJob {
         List<TaskNotifyDTO> tasks = projectTaskMapper.queryTaskNotifyJob();
         // 当前时间
         LocalDate localDate = LocalDate.now();
-        tasks.stream().filter(taskNotifyDTO -> StringUtils.isNotBlank(taskNotifyDTO.getUserWxName()) && taskNotifyDTO.getCloseTime() != null)
+        tasks.stream().filter(taskNotifyDTO -> taskNotifyDTO.getCloseTime() != null)
                 .forEach(taskNotifyDTO -> {
                     if (ProjectStatusEnum.PAUSE.getStatus().equals(taskNotifyDTO.getStatus())) {
+                        return;
+                    }
+                    if (StringUtils.isBlank(taskNotifyDTO.getEmail())) {
+                        log.debug("Skip mail notify because email is empty, userId:{}", taskNotifyDTO.getUserId());
                         return;
                     }
                     LocalDate closeDate = taskNotifyDTO.getCloseTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
@@ -66,6 +78,7 @@ public class TaskNotifyJob {
 //                        taskOverdueRemindDTO.setUserName(taskNotifyDTO.getUserName());
 //                        taskOverdueRemindDTO.setLinkUrl(OAUtils.ssoCreate(host + "/pmhub-project/my-task/info?taskId=" + taskNotifyDTO.getTaskId()));
 //                        RocketMqUtils.push2Wx(taskOverdueRemindDTO);
+                        sendUpcomingMail(taskNotifyDTO, closeDate);
                         // 进行查询 如果数据库不存在记录 则就插入记录
                         LambdaQueryWrapper<ProjectTaskNotify> qw = Wrappers.lambdaQuery(ProjectTaskNotify.class).eq(ProjectTaskNotify::getTaskId, taskNotifyDTO.getTaskId()).eq(ProjectTaskNotify::getOverdue, 0);
                         if (projectTaskNotifyMapper.selectOne(qw) == null) {
@@ -86,4 +99,22 @@ public class TaskNotifyJob {
                 });
     }
 
+    private void sendUpcomingMail(TaskNotifyDTO dto, LocalDate closeDate) {
+        EmailNoticeDTO noticeDTO = EmailNoticeDTO.builder()
+                .to(Collections.singletonList(dto.getEmail()))
+                .subject("任务即将逾期提醒")
+                .content(buildUpcomingContent(dto, closeDate))
+                .build();
+        emailNoticeService.send(noticeDTO);
+    }
+
+    private String buildUpcomingContent(TaskNotifyDTO dto, LocalDate closeDate) {
+        long days = dto.getNotifyDay() == null ? ChronoUnit.DAYS.between(LocalDate.now(), closeDate) : dto.getNotifyDay();
+        String name = StringUtils.isBlank(dto.getUserName()) ? "同事" : dto.getUserName();
+        return String.format("<p>您好，%s：</p><p>任务【%s】还有 %d 天到期（截止 %s）。请尽快处理。</p>",
+                name,
+                dto.getTaskName(),
+                Math.max(days, 0),
+                DEADLINE_FORMATTER.format(closeDate));
+    }
 }

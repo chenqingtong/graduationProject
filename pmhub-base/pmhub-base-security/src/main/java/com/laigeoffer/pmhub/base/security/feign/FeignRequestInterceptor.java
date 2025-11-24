@@ -7,6 +7,9 @@ import com.laigeoffer.pmhub.base.core.utils.ip.IpUtils;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
@@ -20,7 +23,14 @@ import java.util.Map;
 public class FeignRequestInterceptor implements RequestInterceptor {
     @Override
     public void apply(RequestTemplate requestTemplate) {
-        HttpServletRequest httpServletRequest = ServletUtils.getRequest();
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (!(attributes instanceof ServletRequestAttributes)) {
+            return;
+        }
+        HttpServletRequest httpServletRequest = ((ServletRequestAttributes) attributes).getRequest();
+        if (httpServletRequest == null) {
+            return;
+        }
         Map<String, String> headers = ServletUtils.getHeaders(httpServletRequest);
         // 传递用户信息请求头，防止丢失
         String userId = headers.get(SecurityConstants.DETAILS_USER_ID);
