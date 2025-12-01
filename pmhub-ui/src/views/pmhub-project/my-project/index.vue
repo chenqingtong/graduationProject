@@ -180,26 +180,44 @@
 </template>
 
 <script>
-import CreateProjectDialog from "./components/CreateProjectDialog"
-import AddPeopleDialog from "./components/AddPeopleDialog"
-import SetProjectDialog from "./components/SetProjectDialog"
+/**
+ * 我的项目列表页面组件
+ * 功能包括：
+ * 1. 项目列表展示（全部/进行中/已归档）
+ * 2. 项目搜索和筛选
+ * 3. 项目创建、设置、删除、收藏等操作
+ * 4. 项目详情跳转
+ */
+
+// 导入子组件
+import CreateProjectDialog from "./components/CreateProjectDialog" // 创建项目对话框
+import AddPeopleDialog from "./components/AddPeopleDialog" // 添加成员对话框
+import SetProjectDialog from "./components/SetProjectDialog" // 项目设置对话框
+
+// 导入API方法
 import {
-  getProjectListApi,
-  projectCollectApi,
-  projectCancelCollectApi,
-  deleteProjectApi,
+  getProjectListApi, // 获取项目列表
+  projectCollectApi, // 收藏项目
+  projectCancelCollectApi, // 取消收藏项目
+  deleteProjectApi, // 删除项目
 } from "@/api/pmhub-project/my-project.js"
 
 export default {
   name: "MyProject",
   components: { CreateProjectDialog, AddPeopleDialog, SetProjectDialog },
   props: {
-    // 当前是否处于 "我的收藏" 页面
+    /**
+     * 是否处于"我的收藏"页面
+     * 用于控制页面显示和功能
+     */
     isCollectionView: {
       type: Boolean,
       default: false,
     },
-    // 当前是否处于 "回收站" 页面
+    /**
+     * 是否处于"回收站"页面
+     * 用于控制页面显示和功能
+     */
     isRecycleView: {
       type: Boolean,
       default: false,
@@ -207,19 +225,20 @@ export default {
   },
   data() {
     return {
+      // 页面加载状态
       loading: false,
 
-      /* toolbar-wrapper 模块 */
-      projectRadio: undefined,
+      /* toolbar-wrapper 模块 - 工具栏相关数据 */
+      projectRadio: undefined, // 项目状态单选按钮值（全部/进行中/已归档）
 
-      /* search-wrapper 模块 */
+      /* search-wrapper 模块 - 搜索表单相关数据 */
       searchData: {
-        keyword: "",
-        stageCode: undefined,
-        status: undefined,
-        published: undefined,
-        projectType: undefined,
-        time: [],
+        keyword: "", // 搜索关键词（项目名或编码）
+        stageCode: undefined, // 项目阶段代码
+        status: undefined, // 项目状态
+        published: undefined, // 发布状态（0-未发布，1-已发布）
+        projectType: undefined, // 项目类型（0-公开，1-私有）
+        time: [], // 项目起止时间范围
       },
       // 搜索板块，项目阶段需要的下拉框数据
       searchDataStageCodeOptions: [
@@ -306,42 +325,68 @@ export default {
         },
       ],
 
-      /* table-wrapper 模块 */
-      tableData: [],
-      currentRow: {}, // 当前操作的行
+      /* table-wrapper 模块 - 表格相关数据 */
+      tableData: [], // 项目列表数据
+      currentRow: {}, // 当前操作的行数据
 
-      /* pager-wrapper 模块 */
-      total: 0,
-      currentPage: 1,
-      pageSize: 10,
+      /* pager-wrapper 模块 - 分页相关数据 */
+      total: 0, // 总记录数
+      currentPage: 1, // 当前页码
+      pageSize: 10, // 每页显示数量
 
-      /* 对话框模块 */
-      createProjectDialogVisible: false,
-      addPeopleDialogVisible: false,
-      setProjectDialogVisible: false,
+      /* 对话框模块 - 对话框显示控制 */
+      createProjectDialogVisible: false, // 创建项目对话框显示状态
+      addPeopleDialogVisible: false, // 添加成员对话框显示状态
+      setProjectDialogVisible: false, // 项目设置对话框显示状态
     }
   },
   methods: {
-    /* toolbar-wrapper 模块 */
+    /**
+     * toolbar-wrapper 模块 - 工具栏方法
+     */
+    
+    /**
+     * 项目状态单选按钮变化处理
+     * @param {number|undefined} label - 选中的状态值
+     */
     changeProjectRadio(label) {
       this.searchData.status = label
       this.getTableData()
     },
 
-    /* search-wrapper 模块 */
+    /**
+     * search-wrapper 模块 - 搜索表单方法
+     */
+    
+    /**
+     * 执行搜索
+     * 重置页码为第一页，然后重新获取数据
+     */
     handleSearch() {
       this.currentPage = 1
       this.getTableData()
     },
+    
+    /**
+     * 重置表单
+     * @param {string} ref - 表单ref名称
+     */
     handleResetForm(ref) {
       this.$refs[ref].resetFields()
       this.getTableData()
     },
 
-    /* table-wrapper 模块 */
+    /**
+     * table-wrapper 模块 - 表格相关方法
+     */
+    
+    /**
+     * 获取项目列表数据
+     * 根据当前视图类型（我的项目/我的收藏/回收站）调用不同的接口
+     */
     getTableData() {
       this.loading = true
-      // 我的项目列表传 my 我的收藏传 collect 回收站传 recycle
+      // 根据视图类型确定请求参数：我的项目传 my，我的收藏传 collect，回收站传 recycle
       let type = "my"
       if (this.isCollectionView) {
         type = "collect"
@@ -372,20 +417,41 @@ export default {
           this.loading = false
         })
     },
+    /**
+     * 表格行双击事件处理
+     * @param {object} row - 行数据
+     * @param {object} column - 列信息
+     */
     handleRowClick(row, column) {
       this.handleInfo(row)
     },
+    
+    /**
+     * 打开项目设置对话框
+     * @param {object} row - 项目行数据
+     */
     handleSet(row) {
       this.currentRow = row
       this.setProjectDialogVisible = true
     },
+    
+    /**
+     * 打开添加成员对话框
+     * @param {object} row - 项目行数据
+     */
     handleAddPeople(row) {
       this.currentRow = row
       this.addPeopleDialogVisible = true
     },
+    
+    /**
+     * 删除项目
+     * @param {object} row - 项目行数据
+     */
     handleDelete(row) {
       const id = row.projectId
       const name = row.projectName
+      // 确认删除对话框
       this.$modal
         .confirm(`是否确认删除项目：${name}？`)
         .then(() => {
@@ -393,31 +459,45 @@ export default {
         })
         .then(() => {
           this.$modal.msgSuccess("删除成功")
-          this.getTableData()
+          this.getTableData() // 刷新列表
         })
         .catch(() => {})
     },
+    
+    /**
+     * 跳转到项目详情页
+     * @param {object} row - 项目行数据
+     */
     handleInfo(row) {
       this.currentRow = row
-      // this.$cache.session.setJSON("projectData", row) // 缓存当前项目的数据，在详情页会取出展示
+      // 可选：缓存当前项目数据，在详情页使用
+      // this.$cache.session.setJSON("projectData", row)
+      // 通过路由跳转到项目详情页，传递项目ID
       this.$router.push({ path: "/pmhub-project/my-project/info", query: { projectId: row.projectId } })
     },
+    
+    /**
+     * 收藏/取消收藏项目
+     * @param {object} row - 项目行数据
+     */
     handleCollection(row) {
       this.loading = true
       if (row.collected) {
+        // 已收藏，执行取消收藏操作
         projectCancelCollectApi(row.projectId)
           .then((res) => {
             this.$modal.msgSuccess("已取消收藏")
-            this.getTableData()
+            this.getTableData() // 刷新列表
           })
           .finally(() => {
             this.loading = false
           })
       } else {
+        // 未收藏，执行收藏操作
         projectCollectApi(row.projectId)
           .then((res) => {
             this.$modal.msgSuccess("收藏成功")
-            this.getTableData()
+            this.getTableData() // 刷新列表
           })
           .finally(() => {
             this.loading = false
@@ -425,11 +505,23 @@ export default {
       }
     },
 
-    /** pager-wrapper 模块 */
+    /**
+     * pager-wrapper 模块 - 分页相关方法
+     */
+    
+    /**
+     * 页码变化处理
+     * @param {number} value - 新的页码
+     */
     handleCurrentChange(value) {
       this.currentPage = value
       this.getTableData()
     },
+    
+    /**
+     * 每页显示数量变化处理
+     * @param {number} value - 新的每页显示数量
+     */
     handleSizeChange(value) {
       this.pageSize = value
       this.getTableData()

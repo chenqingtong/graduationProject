@@ -28,23 +28,27 @@ import Layout from "@/layout"
   }
  */
 
-// 公共路由
+/**
+ * 公共路由配置
+ * 这些路由不需要权限验证，所有用户都可以访问
+ * 包括：登录页、404、401、首页等
+ */
 export const constantRoutes = [
   {
     path: "/redirect",
     component: Layout,
-    hidden: true,
+    hidden: true, // 不在侧边栏显示
     children: [
       {
-        path: "/redirect/:path(.*)",
+        path: "/redirect/:path(.*)", // 重定向路由，支持动态路径
         component: () => import("@/views/redirect"),
       },
     ],
   },
   {
     path: "/login",
-    component: () => import("@/views/login"),
-    hidden: true,
+    component: () => import("@/views/login"), // 登录页面
+    hidden: true, // 不在侧边栏显示
   },
   // {
   //   path: '/register',
@@ -53,35 +57,39 @@ export const constantRoutes = [
   // },
   {
     path: "/404",
-    component: () => import("@/views/error/404"),
+    component: () => import("@/views/error/404"), // 404错误页面
     hidden: true,
   },
   {
     path: "/401",
-    component: () => import("@/views/error/401"),
+    component: () => import("@/views/error/401"), // 401未授权页面
     hidden: true,
   },
   {
     path: "",
     component: Layout,
-    redirect: "index",
+    redirect: "index", // 根路径重定向到首页
     children: [
       {
         path: "index",
-        component: () => import("@/views/dashboard/index"),
+        component: () => import("@/views/dashboard/index"), // 首页/工作台
         name: "Index",
-        meta: { title: "首页", icon: "dashboard", affix: true },
+        meta: { 
+          title: "首页", 
+          icon: "dashboard", 
+          affix: true // 固定在标签页，不可关闭
+        },
       },
     ],
   },
   {
     path: "/tool",
     component: Layout,
-    hidden: true,
+    hidden: true, // 工具类路由，不在侧边栏显示
     children: [
       {
         path: "build/index",
-        component: () => import("@/views/tool/build/index"),
+        component: () => import("@/views/tool/build/index"), // 表单设计器
         name: "FormBuild",
         meta: { title: "表单设计", icon: "" },
       },
@@ -91,11 +99,11 @@ export const constantRoutes = [
     path: "/user",
     component: Layout,
     hidden: true,
-    redirect: "noredirect",
+    redirect: "noredirect", // 不重定向
     children: [
       {
         path: "profile",
-        component: () => import("@/views/system/user/profile/index"),
+        component: () => import("@/views/system/user/profile/index"), // 个人中心
         name: "Profile",
         meta: { title: "个人中心", icon: "user" },
       },
@@ -103,7 +111,12 @@ export const constantRoutes = [
   },
 ]
 
-// 动态路由，基于用户权限动态去加载
+/**
+ * 动态路由配置
+ * 这些路由需要根据用户权限动态加载
+ * 包括：系统管理、项目管理、工作流等模块的路由
+ * 路由的显示和访问受 permissions 字段控制
+ */
 export const dynamicRoutes = [
   {
     path: "/system/user-auth",
@@ -175,18 +188,24 @@ export const dynamicRoutes = [
       },
     ],
   },
-  // 下面是 pmhub-project 模块
+  /**
+   * 项目管理模块路由
+   */
   {
     path: "/pmhub-project/my-project/info",
     component: Layout,
-    hidden: true,
-    permissions: ["pmhub-project:my-project:info"],
+    hidden: true, // 详情页不在侧边栏显示
+    permissions: ["pmhub-project:my-project:info"], // 需要项目详情权限
     children: [
       {
         path: "",
-        component: () => import("@/views/pmhub-project/my-project/info"),
+        component: () => import("@/views/pmhub-project/my-project/info"), // 项目详情页
         name: "MyProjectInfo",
-        meta: { title: "项目详情", activeMenu: "/pmhub-project/my-project", noCache: true },
+        meta: { 
+          title: "项目详情", 
+          activeMenu: "/pmhub-project/my-project", // 激活的菜单项
+          noCache: true // 不缓存页面，每次进入都重新加载
+        },
       },
     ],
   },
@@ -218,15 +237,17 @@ export const dynamicRoutes = [
       },
     ],
   },
-  // 下面是审批流程相关模块
+  /**
+   * 工作流/审批流程模块路由
+   */
   {
     path: "/workflow/process",
     component: Layout,
     hidden: true,
-    permissions: ["workflow:process:query"],
+    permissions: ["workflow:process:query"], // 需要流程查询权限
     children: [
       {
-        path: "detail/:procInsId([\\w|\\-]+)",
+        path: "detail/:procInsId([\\w|\\-]+)", // 流程详情页，支持流程实例ID参数
         component: () => import("@/views/workflow/work/detail"),
         name: "WorkDetail",
         meta: { title: "流程详情", activeMenu: "/work/own" },
@@ -249,14 +270,22 @@ export const dynamicRoutes = [
   },
 ]
 
-// 防止连续点击多次路由报错
+/**
+ * 路由导航守卫：防止连续点击多次路由报错
+ * 当用户快速连续点击路由时，可能会触发重复导航错误
+ * 通过捕获错误来避免控制台报错
+ */
 let routerPush = Router.prototype.push
 Router.prototype.push = function push(location) {
   return routerPush.call(this, location).catch((err) => err)
 }
 
+/**
+ * 创建并导出Vue Router实例
+ * @type {Router}
+ */
 export default new Router({
-  mode: "history", // 去掉url中的#
-  scrollBehavior: () => ({ y: 0 }),
-  routes: constantRoutes,
+  mode: "history", // 使用HTML5 History模式，去掉URL中的#号
+  scrollBehavior: () => ({ y: 0 }), // 路由切换时滚动到页面顶部
+  routes: constantRoutes, // 初始路由配置（动态路由会在权限验证后添加）
 })

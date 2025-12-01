@@ -56,58 +56,103 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
+ * 项目任务服务实现类
+ * 负责项目任务相关的核心业务逻辑处理，包括：
+ * 1. 任务的增删改查
+ * 2. 任务状态管理
+ * 3. 任务成员管理
+ * 4. 任务日志和评论
+ * 5. 任务统计和导出
+ * 6. 任务审批流程集成
+ *
  * @author chenqingtong
  * @date 2024-12-14 15:00
  */
 @Service
 @Slf4j
 public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, ProjectTask> implements ProjectTaskService {
+    
+    /** 项目任务数据访问层 */
     @Autowired
     private ProjectTaskMapper projectTaskMapper;
+    
+    /** 项目成员数据访问层 */
     @Autowired
     private ProjectMemberMapper projectMemberMapper;
+    
+    /** 项目日志服务 */
     @Autowired
     private ProjectLogService projectLogService;
+    
+    /** 项目数据访问层 */
     @Autowired
     private ProjectMapper projectMapper;
+    
+    /** 项目阶段数据访问层 */
     @Autowired
     private ProjectStageMapper projectStageMapper;
+    
+    /** 任务日志查询工厂 */
     @Autowired
     private QueryTaskLogFactory queryTaskLogFactory;
+    
+    /** 项目文件数据访问层 */
     @Autowired
     private ProjectFileMapper projectFileMapper;
+    
+    /** 项目任务流程数据访问层 */
     @Autowired
     private ProjectTaskProcessMapper projectTaskProcessMapper;
 
-    // 远程调用流程服务
+    /** 远程调用流程服务（Feign），用于处理任务审批流程 */
     @Resource
     private DeployFeignService wfDeployService;
 
-    // 远程调用用户服务
+    /** 远程调用用户服务（Feign），用于查询用户信息 */
     @Resource
     private UserFeignService userFeignService;
 
+    /**
+     * 查询今日任务数量
+     * 统计开始时间在今天的任务数量
+     *
+     * @return 今日任务数量
+     */
     @Override
     public Long queryTodayTaskNum() {
+        // 构建查询条件：开始时间在今天范围内，且未删除
         LambdaQueryWrapper<ProjectTask> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.between(ProjectTask::getBeginTime, DateTimeFormatter.ofPattern(DateUtils.YYYY_MM_DD_HH_MM_SS).format(LocalDateTime.now().with(LocalTime.MIN))
-                , DateTimeFormatter.ofPattern(DateUtils.YYYY_MM_DD_HH_MM_SS).format(LocalDateTime.now().with(LocalTime.MAX))).eq(ProjectTask::getDeleted, 0);
-        if (projectTaskMapper.selectCount(queryWrapper) == null) {
-            return 0L;
-        }
-        return projectTaskMapper.selectCount(queryWrapper);
-
+        String todayStart = DateTimeFormatter.ofPattern(DateUtils.YYYY_MM_DD_HH_MM_SS)
+                .format(LocalDateTime.now().with(LocalTime.MIN)); // 今天00:00:00
+        String todayEnd = DateTimeFormatter.ofPattern(DateUtils.YYYY_MM_DD_HH_MM_SS)
+                .format(LocalDateTime.now().with(LocalTime.MAX)); // 今天23:59:59
+        
+        queryWrapper.between(ProjectTask::getBeginTime, todayStart, todayEnd)
+                .eq(ProjectTask::getDeleted, 0);
+        
+        Long count = projectTaskMapper.selectCount(queryWrapper);
+        return count == null ? 0L : count;
     }
 
+    /**
+     * 查询逾期任务数量
+     * 统计截止时间已过但未完成的任务数量
+     *
+     * @return 逾期任务数量
+     */
     @Override
     public Long queryOverdueTaskNum() {
+        // 构建查询条件：截止时间小于当前时间，未删除，且未完成
         LambdaQueryWrapper<ProjectTask> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.lt(ProjectTask::getCloseTime, DateTimeFormatter.ofPattern(DateUtils.YYYY_MM_DD_HH_MM_SS).format(LocalDateTime.now())).eq(ProjectTask::getDeleted, 0)
-                .ne(ProjectTask::getExecuteStatus, ProjectTaskStatusEnum.FINISHED.getStatus());
-        if (projectTaskMapper.selectCount(queryWrapper) == null) {
-            return 0L;
-        }
-        return projectTaskMapper.selectCount(queryWrapper);
+        String now = DateTimeFormatter.ofPattern(DateUtils.YYYY_MM_DD_HH_MM_SS)
+                .format(LocalDateTime.now());
+        
+        queryWrapper.lt(ProjectTask::getCloseTime, now) // 截止时间小于当前时间
+                .eq(ProjectTask::getDeleted, 0) // 未删除
+                .ne(ProjectTask::getExecuteStatus, ProjectTaskStatusEnum.FINISHED.getStatus()); // 未完成
+        
+        Long count = projectTaskMapper.selectCount(queryWrapper);
+        return count == null ? 0L : count;
     }
 
     @Override
@@ -360,25 +405,46 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         return new PageInfo<>(list);
     }
 
+    /**
+     * 添加新任务
+     * 使用Seata分布式事务（AT模式）确保任务创建、成员添加、审批设置等操作的原子性
+     * 创建任务时会自动：
+     * 1. 验证项目状态
+     * 2. 验证任务时间
+     * 3. 创建任务记录
+     * 4. 添加任务成员
+     * 5. 记录操作日志
+     * 6. 设置审批流程（如果需要）
+     *
+     * @param taskReqVO 任务请求对象，包含任务信息
+     * @return 任务ID
+     * @throws ServiceException 如果项目已暂停或审批服务调用失败
+     */
     @Override
-    @GlobalTransactional(name = "pmhub-project-addTask",rollbackFor = Exception.class) //seata分布式事务，AT模式
+    @GlobalTransactional(name = "pmhub-project-addTask", rollbackFor = Exception.class) // Seata分布式事务，AT模式
     public String add(TaskReqVO taskReqVO) {
-        // xid 全局事务id的检查（方便查看）
+        // 获取全局事务ID，用于分布式事务追踪
         String xid = RootContext.getXID();
-        log.info("---------------开始新建任务: "+"\t"+"xid: "+xid);
+        log.info("---------------开始新建任务: " + "\t" + "xid: " + xid);
 
+        // 1. 验证项目状态：如果项目已暂停，不允许新增任务
         if (ProjectStatusEnum.PAUSE.getStatus().equals(projectTaskMapper.queryProjectStatus(taskReqVO.getProjectId()))) {
             throw new ServiceException("归属项目已暂停，无法新增任务");
         }
 
+        // 2. 验证任务时间：开始时间、结束时间、截止时间的逻辑关系
         validateTaskTime(taskReqVO.getBeginTime(), taskReqVO.getEndTime(), taskReqVO.getCloseTime());
 
-        // 1、添加任务
+        // 3. 创建任务实体
         ProjectTask projectTask = new ProjectTask();
+        // 如果指定了父任务ID，则设置为子任务
         if (StringUtils.isNotBlank(taskReqVO.getTaskId())) {
             projectTask.setTaskPid(taskReqVO.getTaskId());
         }
+        // 复制请求对象属性到任务实体
         BeanUtils.copyProperties(taskReqVO, projectTask);
+        
+        // 获取执行人昵称
         String executorNickName = getExecutorNickName(taskReqVO.getUserId());
         projectTask.setAssignTo(executorNickName);
         projectTask.setCreatedBy(SecurityUtils.getUsername());
@@ -387,33 +453,47 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         projectTask.setUpdatedTime(new Date());
         projectTaskMapper.insert(projectTask);
 
-        // 2、添加任务成员
+        // 4. 添加任务成员：将创建者添加为任务成员（标记为创建者）
         insertMember(projectTask.getId(), 1, SecurityUtils.getUserId());
-        // 3、添加日志
-        saveLog("addTask", projectTask.getId(), taskReqVO.getProjectId(), taskReqVO.getTaskName(), "参与了任务", null);
-        // 将执行人加入
+        
+        // 5. 记录任务创建日志
+        saveLog("addTask", projectTask.getId(), taskReqVO.getProjectId(), 
+                taskReqVO.getTaskName(), "参与了任务", null);
+        
+        // 6. 如果指定了执行人且不是创建者，则将执行人添加为任务成员
         if (taskReqVO.getUserId() != null && !Objects.equals(taskReqVO.getUserId(), SecurityUtils.getUserId())) {
             insertMember(projectTask.getId(), 0, taskReqVO.getUserId());
-            // 添加日志
+            
+            // 记录邀请成员日志
             String inviteeName = executorNickName;
             if (StringUtils.isBlank(inviteeName)) {
                 inviteeName = getExecutorNickName(taskReqVO.getUserId());
             }
-            saveLog("invitePartakeTask", projectTask.getId(), taskReqVO.getProjectId(), taskReqVO.getTaskName(), "邀请 " + inviteeName + " 参与任务", taskReqVO.getUserId());
+            saveLog("invitePartakeTask", projectTask.getId(), taskReqVO.getProjectId(), 
+                    taskReqVO.getTaskName(), "邀请 " + inviteeName + " 参与任务", taskReqVO.getUserId());
         }
-        // 4、任务指派消息提醒
-        extracted(taskReqVO.getTaskName(), taskReqVO.getUserId(), SecurityUtils.getUsername(), projectTask.getId());
+        
+        // 7. 发送任务指派消息提醒（当前已注释，待实现）
+        extracted(taskReqVO.getTaskName(), taskReqVO.getUserId(), 
+                SecurityUtils.getUsername(), projectTask.getId());
 
-        // 5、添加或更新审批设置（远程调用 pmhub-workflow 微服务）
-        ApprovalSetDTO approvalSetDTO = new ApprovalSetDTO(projectTask.getId(), ProjectStatusEnum.TASK.getStatusName(),
-                taskReqVO.getApproved(), taskReqVO.getDefinitionId(), taskReqVO.getDeploymentId());
+        // 8. 添加或更新审批设置（远程调用 pmhub-workflow 微服务）
+        ApprovalSetDTO approvalSetDTO = new ApprovalSetDTO(
+                projectTask.getId(), 
+                ProjectStatusEnum.TASK.getStatusName(),
+                taskReqVO.getApproved(), 
+                taskReqVO.getDefinitionId(), 
+                taskReqVO.getDeploymentId()
+        );
         R<Boolean> result = wfDeployService.insertOrUpdateApprovalSet(approvalSetDTO, SecurityConstants.INNER);
 
+        // 验证审批服务调用结果
         if (Objects.isNull(result) || Objects.isNull(result.getData())
                 || R.fail().equals(result.getData())) {
-            throw  new ServiceException("远程调用审批服务失败");
+            throw new ServiceException("远程调用审批服务失败");
         }
-        log.info("---------------结束新建任务: "+"\t"+"xid: "+xid);
+        
+        log.info("---------------结束新建任务: " + "\t" + "xid: " + xid);
         return projectTask.getId();
     }
 
@@ -557,10 +637,21 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         });
     }
 
+    /**
+     * 验证任务时间的逻辑关系
+     * 确保：开始时间 <= 结束时间 <= 截止时间
+     *
+     * @param beginTime 预计开始时间
+     * @param endTime 预计完成时间
+     * @param closeTime 截止时间
+     * @throws ServiceException 如果时间逻辑不正确
+     */
     private void validateTaskTime(Date beginTime, Date endTime, Date closeTime) {
+        // 验证：开始时间不能晚于结束时间
         if (Objects.nonNull(beginTime) && Objects.nonNull(endTime) && beginTime.after(endTime)) {
             throw new ServiceException("预计开始日期不能晚于预计完成日期");
         }
+        // 验证：结束时间不能晚于截止时间
         if (Objects.nonNull(endTime) && Objects.nonNull(closeTime) && endTime.after(closeTime)) {
             throw new ServiceException("预计完成日期不能晚于截止日期");
         }
@@ -849,21 +940,39 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         });
     }
 
+    /**
+     * 插入任务成员
+     * 将用户添加为任务成员，并标记是否为创建者
+     *
+     * @param taskId 任务ID
+     * @param creator 是否为创建者（1-是，0-否）
+     * @param userId 用户ID
+     */
     void insertMember(String taskId, Integer creator, Long userId) {
         ProjectMember projectMember = new ProjectMember();
         projectMember.setPtId(taskId);
-        projectMember.setType(ProjectStatusEnum.TASK.getStatusName());
+        projectMember.setType(ProjectStatusEnum.TASK.getStatusName()); // 类型：任务
         projectMember.setJoinedTime(new Date());
         projectMember.setUserId(userId);
         projectMember.setCreatedBy(SecurityUtils.getUsername());
         projectMember.setCreatedTime(new Date());
         projectMember.setUpdatedBy(SecurityUtils.getUsername());
         projectMember.setUpdatedTime(new Date());
-        // 是创建者
-        projectMember.setCreator(creator);
+        projectMember.setCreator(creator); // 标记是否为创建者
         projectMemberMapper.insert(projectMember);
     }
 
+    /**
+     * 保存任务操作日志
+     * 记录任务的各类操作，如创建、编辑、评论等
+     *
+     * @param operateType 操作类型，如：addTask、editTask、comment等
+     * @param taskId 任务ID
+     * @param projectId 项目ID
+     * @param taskName 任务名称
+     * @param remark 备注信息
+     * @param userId 被操作的用户ID（可选）
+     */
     void saveLog(String operateType, String taskId, String projectId, String taskName, String remark, Long userId) {
         LogVO logVO = new LogVO();
         logVO.setLogType(LogTypeEnum.TRENDS.getStatus());
