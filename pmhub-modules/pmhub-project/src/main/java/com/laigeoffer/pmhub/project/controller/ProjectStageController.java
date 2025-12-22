@@ -43,7 +43,7 @@ public class ProjectStageController {
         return AjaxResult.success();
     }
     /**
-     * 添加阶段
+     * 编辑阶段
      * @param projectStageVO
      * @return
      */

@@ -24,6 +24,10 @@ public class PmhubConfig {
      */
     private static String captchaType;
     /**
+     * 应用基础URL（用于生成邮件中的完整链接，例如：http://localhost:8080 或 https://yourdomain.com）
+     */
+    private static String baseUrl;
+    /**
      * 项目名称
      */
     private String name;
@@ -62,6 +66,14 @@ public class PmhubConfig {
 
     public void setCaptchaType(String captchaType) {
         PmhubConfig.captchaType = captchaType;
+    }
+
+    public static String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        PmhubConfig.baseUrl = baseUrl;
     }
 
     /**

@@ -65,7 +65,7 @@ public class ProjectTaskController {
     }
 
     /**
-     * 概况-任务概况
+     * 概况-任务概况，首页统计各种任务占比
      * @param projectVO
      * @return
      */
@@ -103,14 +103,11 @@ public class ProjectTaskController {
         if (CollectionUtils.isNotEmpty(wfTaskProcesses)) {
             StringBuilder msg = new StringBuilder();
             for (ProjectTaskProcess projectTaskProcess : wfTaskProcesses) {
-                if (StringUtils.isNotBlank(projectTaskProcess.getInstanceId())) {
-                    msg.append(collect.get(projectTaskProcess.getExtraId()).get(0).getTaskName()).append(",");
-                }
+                msg.append(collect.get(projectTaskProcess.getExtraId()).get(0).getTaskName()).append(",");
             }
-            if (StringUtils.isNotBlank(msg.toString())) {
-                throw new ServiceException("[" + msg.substring(0, msg.toString().length() - 1) + "]" + "存在审批流程，不允许删除");
+            if (msg.length() > 0) {
+                throw new ServiceException("[" + msg.substring(0, msg.length() - 1) + "]已存在审批流程，无法删除任务");
             }
-
         }
         projectTaskService.deleteTask(taskIdsVO);
         // 清除首页数据缓存
@@ -129,7 +126,8 @@ public class ProjectTaskController {
     }
 
     /**
-     * 任务详情-查询执行人
+     * 任务详情-查询执行人（×）
+     * 创建任务时根据项目ID查询执行人候选列表
      * @param taskReqVO
      * @return
      */
@@ -306,7 +304,7 @@ public class ProjectTaskController {
     @PostMapping("/task/updateApprovalSet")
     @RequiresPermissions("project:task:updateApprovalSet")
     public AjaxResult updateApprovalSet(@RequestBody ApprovalSetDTO approvalSetDTO) {
-        log.info("收到审批设置更新请求，taskId: {}, approved: {}, approvalInfo: {}", 
+        log.info("收到审批设置更新请求，taskId: {}, approved: {}, approvalInfo: {}",
                 approvalSetDTO.getTaskId(), approvalSetDTO.getApproved(), approvalSetDTO.getApprovalInfo());
         // 审批相关流程远程调用
         R<?> result = wfDeployService.updateApprovalSet2(approvalSetDTO, SecurityConstants.INNER);

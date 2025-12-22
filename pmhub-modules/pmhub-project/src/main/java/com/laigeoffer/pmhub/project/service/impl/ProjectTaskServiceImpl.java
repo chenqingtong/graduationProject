@@ -25,6 +25,8 @@ import com.laigeoffer.pmhub.base.core.exception.ServiceException;
 import com.laigeoffer.pmhub.base.core.utils.DateUtils;
 import com.laigeoffer.pmhub.base.core.utils.file.FileUtils;
 import com.laigeoffer.pmhub.base.security.utils.SecurityUtils;
+import com.laigeoffer.pmhub.base.notice.domain.dto.EmailNoticeDTO;
+import com.laigeoffer.pmhub.base.notice.service.EmailNoticeService;
 import com.laigeoffer.pmhub.project.domain.*;
 import com.laigeoffer.pmhub.project.domain.vo.project.ProjectVO;
 import com.laigeoffer.pmhub.project.domain.vo.project.log.*;
@@ -71,35 +73,35 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, ProjectTask> implements ProjectTaskService {
-    
+
     /** 项目任务数据访问层 */
     @Autowired
     private ProjectTaskMapper projectTaskMapper;
-    
+
     /** 项目成员数据访问层 */
     @Autowired
     private ProjectMemberMapper projectMemberMapper;
-    
+
     /** 项目日志服务 */
     @Autowired
     private ProjectLogService projectLogService;
-    
+
     /** 项目数据访问层 */
     @Autowired
     private ProjectMapper projectMapper;
-    
+
     /** 项目阶段数据访问层 */
     @Autowired
     private ProjectStageMapper projectStageMapper;
-    
+
     /** 任务日志查询工厂 */
     @Autowired
     private QueryTaskLogFactory queryTaskLogFactory;
-    
+
     /** 项目文件数据访问层 */
     @Autowired
     private ProjectFileMapper projectFileMapper;
-    
+
     /** 项目任务流程数据访问层 */
     @Autowired
     private ProjectTaskProcessMapper projectTaskProcessMapper;
@@ -111,6 +113,10 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
     /** 远程调用用户服务（Feign），用于查询用户信息 */
     @Resource
     private UserFeignService userFeignService;
+
+    /** 邮件通知服务 */
+    @Autowired
+    private EmailNoticeService emailNoticeService;
 
     /**
      * 查询今日任务数量
@@ -126,10 +132,10 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
                 .format(LocalDateTime.now().with(LocalTime.MIN)); // 今天00:00:00
         String todayEnd = DateTimeFormatter.ofPattern(DateUtils.YYYY_MM_DD_HH_MM_SS)
                 .format(LocalDateTime.now().with(LocalTime.MAX)); // 今天23:59:59
-        
+
         queryWrapper.between(ProjectTask::getBeginTime, todayStart, todayEnd)
                 .eq(ProjectTask::getDeleted, 0);
-        
+
         Long count = projectTaskMapper.selectCount(queryWrapper);
         return count == null ? 0L : count;
     }
@@ -146,11 +152,11 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         LambdaQueryWrapper<ProjectTask> queryWrapper = new LambdaQueryWrapper<>();
         String now = DateTimeFormatter.ofPattern(DateUtils.YYYY_MM_DD_HH_MM_SS)
                 .format(LocalDateTime.now());
-        
+
         queryWrapper.lt(ProjectTask::getCloseTime, now) // 截止时间小于当前时间
                 .eq(ProjectTask::getDeleted, 0) // 未删除
                 .ne(ProjectTask::getExecuteStatus, ProjectTaskStatusEnum.FINISHED.getStatus()); // 未完成
-        
+
         Long count = projectTaskMapper.selectCount(queryWrapper);
         return count == null ? 0L : count;
     }
@@ -276,14 +282,20 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         TaskResVO detail = projectTaskMapper.detail(taskReqVO.getTaskId());
         detail.setStatusName(ProjectTaskStatusEnum.getStatusNameByStatus(detail.getStatus()));
         detail.setExecuteStatusName(ProjectTaskStatusEnum.getStatusNameByStatus(detail.getExecuteStatus()));
-        String createdBy = "";
-        if (detail.getUserId() != null) {
-            // 查询用户信息
-            List<SysUser> sysUsers = getSysUserList(Collections.singletonList(detail.getUserId()));
-            createdBy = sysUsers.get(0).getNickName();
-            detail.setExecutor(createdBy);
+        // 按创建人账号查昵称
+        if (StringUtils.isNotBlank(detail.getCreatedBy())) {
+            String creatorNickName = getNickNameByUserName(detail.getCreatedBy());
+            if (StringUtils.isNotBlank(creatorNickName)) {
+                detail.setCreatedBy(creatorNickName);
+            }
         }
-        detail.setCreatedBy(createdBy);
+        // 填充执行人昵称
+        if (detail.getUserId() != null) {
+            String executorNickName = getExecutorNickName(detail.getUserId());
+            if (StringUtils.isNotBlank(executorNickName)) {
+                detail.setExecutor(executorNickName);
+            }
+        }
         detail.setTaskPriorityName(ProjectTaskPriorityEnum.getStatusNameByStatus(detail.getTaskPriority()));
         return detail;
     }
@@ -344,6 +356,16 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         if (!assignToUpdateMap.isEmpty()) {
             assignToUpdateMap.forEach((taskId, nickName) -> projectTaskMapper.updateAssignTo(taskId, nickName));
         }
+    }
+
+    private String getNickNameByUserName(String userName) {
+        SysUserDTO sysUserDTO = new SysUserDTO();
+        sysUserDTO.setUserName(userName);
+        R<List<SysUserVO>> userResult = userFeignService.listOfInner(sysUserDTO, SecurityConstants.INNER);
+        if (Objects.isNull(userResult) || CollectionUtils.isEmpty(userResult.getData())) {
+            return null;
+        }
+        return userResult.getData().get(0).getNickName();
     }
 
     @Override
@@ -443,7 +465,7 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         }
         // 复制请求对象属性到任务实体
         BeanUtils.copyProperties(taskReqVO, projectTask);
-        
+
         // 获取执行人昵称
         String executorNickName = getExecutorNickName(taskReqVO.getUserId());
         projectTask.setAssignTo(executorNickName);
@@ -455,34 +477,34 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
 
         // 4. 添加任务成员：将创建者添加为任务成员（标记为创建者）
         insertMember(projectTask.getId(), 1, SecurityUtils.getUserId());
-        
+
         // 5. 记录任务创建日志
-        saveLog("addTask", projectTask.getId(), taskReqVO.getProjectId(), 
+        saveLog("addTask", projectTask.getId(), taskReqVO.getProjectId(),
                 taskReqVO.getTaskName(), "参与了任务", null);
-        
+
         // 6. 如果指定了执行人且不是创建者，则将执行人添加为任务成员
         if (taskReqVO.getUserId() != null && !Objects.equals(taskReqVO.getUserId(), SecurityUtils.getUserId())) {
             insertMember(projectTask.getId(), 0, taskReqVO.getUserId());
-            
+
             // 记录邀请成员日志
             String inviteeName = executorNickName;
             if (StringUtils.isBlank(inviteeName)) {
                 inviteeName = getExecutorNickName(taskReqVO.getUserId());
             }
-            saveLog("invitePartakeTask", projectTask.getId(), taskReqVO.getProjectId(), 
+            saveLog("invitePartakeTask", projectTask.getId(), taskReqVO.getProjectId(),
                     taskReqVO.getTaskName(), "邀请 " + inviteeName + " 参与任务", taskReqVO.getUserId());
         }
-        
-        // 7. 发送任务指派消息提醒（当前已注释，待实现）
-        extracted(taskReqVO.getTaskName(), taskReqVO.getUserId(), 
+
+        // 7. 发送任务指派消息提醒（当前已注释，待实现）（已实现）
+        extracted(taskReqVO.getTaskName(), taskReqVO.getUserId(),
                 SecurityUtils.getUsername(), projectTask.getId());
 
         // 8. 添加或更新审批设置（远程调用 pmhub-workflow 微服务）
         ApprovalSetDTO approvalSetDTO = new ApprovalSetDTO(
-                projectTask.getId(), 
+                projectTask.getId(),
                 ProjectStatusEnum.TASK.getStatusName(),
-                taskReqVO.getApproved(), 
-                taskReqVO.getDefinitionId(), 
+                taskReqVO.getApproved(),
+                taskReqVO.getDefinitionId(),
                 taskReqVO.getDeploymentId()
         );
         R<Boolean> result = wfDeployService.insertOrUpdateApprovalSet(approvalSetDTO, SecurityConstants.INNER);
@@ -492,36 +514,124 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
                 || R.fail().equals(result.getData())) {
             throw new ServiceException("远程调用审批服务失败");
         }
-        
+
         log.info("---------------结束新建任务: " + "\t" + "xid: " + xid);
         return projectTask.getId();
     }
 
+    /**
+     * 发送任务指派邮件通知
+     *
+     * @param taskName 任务名称
+     * @param userId 被指派用户ID
+     * @param username 指派人用户名
+     * @param taskId 任务ID
+     */
     private void extracted(String taskName, Long userId, String username, String taskId) {
-//        String name = projectTaskMapper.queryVxUserName(userId);
-//        if (StringUtils.isNotBlank(name)) {
-            // TODO: 2024.04.25 逾期任务提醒暂时关闭
-//            TaskAssignRemindDTO taskAssignRemindDTO = new TaskAssignRemindDTO();
-//            taskAssignRemindDTO.setTaskName(taskName);
-//            taskAssignRemindDTO.setUserIds(Collections.singletonList(name));
-//            taskAssignRemindDTO.setCreator(projectTaskMapper.queryNickName(username));
-//            // 设置任务详情地址
-//            String url = SsoUrlUtils.ssoCreate(appid, agentid, host + path + ssoPath + URLEncoder.encode(host + "/pmhub-project/my-task/info?taskId=" + taskId));
-//            taskAssignRemindDTO.setDetailUrl(url);
-//            taskAssignRemindDTO.setUserName(username);
-//            taskAssignRemindDTO.setOaTitle("任务指派提醒");
-//            taskAssignRemindDTO.setOaContext("【" + projectTaskMapper.queryNickName(username) + "】给您指派了任务【" + taskName + "】，请及时处理！");
-//            taskAssignRemindDTO.setLinkUrl(OAUtils.ssoCreate(host + "/pmhub-project/my-task/info?taskId=" + taskId));
-            // TODO: 2024.03.03 @canghe 推送消息暂时关闭
-//            RocketMqUtils.push2Wx(taskAssignRemindDTO);
-//        }
+        // 如果用户ID为空，不发送通知
+        if (userId == null) {
+            return;
+        }
 
+        try {
+            // 获取被指派用户信息
+            List<SysUser> sysUsers = getSysUserList(Collections.singletonList(userId));
+            if (CollectionUtils.isEmpty(sysUsers)) {
+                log.warn("无法获取用户信息，跳过邮件通知，userId: {}", userId);
+                return;
+            }
+
+            SysUser assignedUser = sysUsers.get(0);
+            String email = assignedUser.getEmail();
+
+            // 如果用户邮箱为空，不发送通知
+            if (StringUtils.isBlank(email)) {
+                log.debug("用户邮箱为空，跳过邮件通知，userId: {}", userId);
+                return;
+            }
+
+            // 获取指派人昵称
+            String assignerNickName = getExecutorNickName(SecurityUtils.getUserId());
+            if (StringUtils.isBlank(assignerNickName)) {
+                assignerNickName = username;
+            }
+
+            // 获取被指派人昵称
+            String assigneeNickName = StringUtils.isBlank(assignedUser.getNickName())
+                    ? "同事"
+                    : assignedUser.getNickName();
+
+            // 构建邮件内容
+            String emailContent = buildTaskAssignEmailContent(
+                    assigneeNickName,
+                    assignerNickName,
+                    taskName,
+                    taskId
+            );
+
+            // 发送邮件
+            EmailNoticeDTO noticeDTO = EmailNoticeDTO.builder()
+                    .to(Collections.singletonList(email))
+                    .subject("任务指派提醒")
+                    .content(emailContent)
+                    .htmlContent(true)
+                    .build();
+
+            emailNoticeService.send(noticeDTO);
+            log.info("任务指派邮件通知已发送，任务ID: {}, 收件人: {}", taskId, email);
+
+        } catch (Exception e) {
+            log.error("发送任务指派邮件通知失败，任务ID: {}, 用户ID: {}", taskId, userId, e);
+        }
+    }
+
+    /**
+     * 构建任务指派邮件内容
+     *
+     * @param assigneeNickName 被指派人昵称
+     * @param assignerNickName 指派人昵称
+     * @param taskName 任务名称
+     * @param taskId 任务ID
+     * @return 邮件HTML内容
+     */
+    private String buildTaskAssignEmailContent(String assigneeNickName, String assignerNickName,
+                                               String taskName, String taskId) {
+        // 获取应用基础URL，如果未配置则使用相对路径（兼容旧配置）
+        String baseUrl = PmhubConfig.getBaseUrl();
+        String taskUrl;
+        if (StringUtils.isNotBlank(baseUrl)) {
+            // 确保baseUrl不以斜杠结尾
+            baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+            taskUrl = baseUrl + "/pmhub-project/my-task/info?taskId=" + taskId;
+        } else {
+            // 如果未配置baseUrl，使用相对路径（可能被邮件客户端转换为错误域名）
+            log.warn("应用基础URL未配置，邮件链接将使用相对路径，可能导致链接错误。请在配置文件中设置 pmhub.base-url");
+            taskUrl = "/pmhub-project/my-task/info?taskId=" + taskId;
+        }
+
+        StringBuilder content = new StringBuilder();
+        content.append("<div style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>");
+        content.append("<p>您好，").append(assigneeNickName).append("：</p>");
+        content.append("<p>【").append(assignerNickName).append("】给您指派了任务【<strong>")
+               .append(taskName).append("</strong>】，请及时处理！</p>");
+        content.append("<p style='margin-top: 20px;'>");
+        content.append("<a href='").append(taskUrl)
+               .append("' style='display: inline-block; padding: 10px 20px; background-color: #409EFF; ")
+               .append("color: #fff; text-decoration: none; border-radius: 4px;'>查看任务详情</a>");
+        content.append("</p>");
+        content.append("<p style='margin-top: 20px; color: #999; font-size: 12px;'>");
+        content.append("此邮件由系统自动发送，请勿回复。");
+        content.append("</p>");
+        content.append("</div>");
+        return content.toString();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void edit(TaskReqVO taskReqVO) {
+        // 1. 获取原任务信息并验证项目状态
         ProjectTask oldObj = projectTaskMapper.selectById(taskReqVO.getTaskId());
+        // 如果原项目或新切换的项目处于暂停状态，则禁止操作
         if (ProjectStatusEnum.PAUSE.getStatus().equals(projectTaskMapper.queryProjectStatus(oldObj.getProjectId()))) {
             throw new ServiceException("归属项目已暂停，无法操作任务");
         }
@@ -529,6 +639,7 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             throw new ServiceException("该任务不能切换到已暂停的项目");
         }
 
+        // 2. 验证任务时间的逻辑关系（如：开始时间不能晚于结束时间）
         validateTaskTime(taskReqVO.getBeginTime(), taskReqVO.getEndTime(), taskReqVO.getCloseTime());
          // TODO: 2024.06.24 暂时注释掉审批过滤，待远程调用
 //        if (!Objects.equals(oldObj.getStatus(), taskReqVO.getStatus())) {
@@ -547,14 +658,19 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         BeanUtils.copyProperties(taskReqVO, projectTask);
         projectTask.setId(taskReqVO.getTaskId());
         projectTask.setProjectId(taskReqVO.getProjectId());
+        // 设置执行人昵称并更新数据库
         projectTask.setAssignTo(getExecutorNickName(taskReqVO.getUserId()));
         projectTask.setUpdatedTime(new Date());
         projectTaskMapper.updateById(projectTask);
 
+        // 4. 更新任务成员（处理执行人变更逻辑）
         LambdaQueryWrapper<ProjectMember> qw = new LambdaQueryWrapper<>();
         qw.eq(ProjectMember::getPtId, taskReqVO.getTaskId()).eq(ProjectMember::getType, ProjectStatusEnum.TASK.getStatusName());
         List<ProjectMember> projectMembers = projectMemberMapper.selectList(qw);
+
+        // 情况 A：任务当前只有一名成员（通常是创建者自己执行，或之前指派了一个人）
         if (projectMembers.size() == 1) {
+            // 如果指派的人变了，则新增一名任务成员
             if (!Objects.equals(taskReqVO.getUserId(), projectMembers.get(0).getUserId())) {
                 ProjectMember projectMember = new ProjectMember();
                 projectMember.setPtId(taskReqVO.getTaskId());
@@ -567,11 +683,14 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
                 projectMember.setUpdatedTime(new Date());
                 projectMemberMapper.insert(projectMember);
             }
-        } else if (projectMembers.size() == 2) {
+        }
+        // 情况 B：任务已有两名成员（通常是创建者 + 执行人）
+        else if (projectMembers.size() == 2) {
             Map<Long, List<ProjectMember>> map = projectMembers.stream().collect(Collectors.groupingBy(ProjectMember::getUserId));
             List<ProjectMember> pms = map.get(taskReqVO.getUserId());
+            // 如果新指派的用户不在当前成员列表中，则替换掉原有的非创建者成员
             if (CollectionUtils.isEmpty(pms)) {
-                // 将creator为0的进行更新
+                // 更新非创建者（creator=0）的那条成员记录
                 LambdaQueryWrapper<ProjectMember> lqw = new LambdaQueryWrapper<>();
                 lqw.eq(ProjectMember::getPtId, taskReqVO.getTaskId()).eq(ProjectMember::getCreator, 0);
                 ProjectMember projectMember = projectMemberMapper.selectOne(lqw);
@@ -581,22 +700,25 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
                 projectMember.setJoinedTime(new Date());
                 projectMemberMapper.updateById(projectMember);
             } else {
+                // 如果新指派的用户已经是成员，且它是创建者，则删除另一个非创建者成员记录（变回一人执行模式）
                 if (pms.get(0).getCreator() == 1) {
-                    // 删除creator为0的
                     LambdaQueryWrapper<ProjectMember> lqw = new LambdaQueryWrapper<>();
                     lqw.eq(ProjectMember::getPtId, taskReqVO.getTaskId()).eq(ProjectMember::getCreator, 0);
                     projectMemberMapper.delete(lqw);
                 }
             }
         }
+
+        // 5. 如果执行人发生变更，发送邮件通知
         if (!oldObj.getUserId().equals(taskReqVO.getUserId())) {
-            // 任务指派消息提醒
             extracted(taskReqVO.getTaskName(), taskReqVO.getUserId(), SecurityUtils.getUsername(), taskReqVO.getTaskId());
         }
+
+        // 6. 记录操作日志（比对字段变更）
         ProjectTask newObj = projectTaskMapper.selectById(taskReqVO.getTaskId());
+        // 获取对象属性变动详情
         List<LogDataVO> data = FieldUtils.getChangedFields(newObj, oldObj);
         data.forEach(a -> {
-            // 添加日志
             LogVO lv = new LogVO();
             lv.setLogType(LogTypeEnum.TRENDS.getStatus());
             lv.setOperateType("editTask");
@@ -604,8 +726,9 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             lv.setPtId(projectTask.getId());
             lv.setProjectId(projectTask.getProjectId());
             lv.setUserId(SecurityUtils.getUserId());
-
             lv.setRemark(a.getRemark());
+
+            // 转换变更内容的显示值（如用户ID转昵称，状态码转文字说明）
             List<LogContentVO> logContentVOList = a.getLogContentVOList();
             logContentVOList.forEach(logContentVO -> {
                 switch (logContentVO.getField()) {
@@ -630,6 +753,8 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
             lv.setUpdatedBy(SecurityUtils.getUsername());
             lv.setUpdatedTime(new Date());
             projectLogService.run(lv);
+
+            // 7. 任务完成度特殊处理：如果状态变更为已完成，进度自动设为100%
             if (ProjectTaskStatusEnum.FINISHED.getStatus().equals(taskReqVO.getStatus())) {
                 projectTask.setTaskProcess(new BigDecimal("100"));
             }

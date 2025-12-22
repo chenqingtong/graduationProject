@@ -61,8 +61,12 @@ public class TaskNotifyJob {
                     LocalDate closeDate = taskNotifyDTO.getCloseTime().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                     if (ChronoUnit.DAYS.between(localDate, closeDate) == taskNotifyDTO.getNotifyDay()) {
                         log.info("待逾期任务提醒开始, 用户id:{}, 企微id:{}, 任务id:{}", taskNotifyDTO.getUserId(), taskNotifyDTO.getUserWxName(), taskNotifyDTO.getTaskId());
-                        // 进行待逾期消息提醒
-                        // TODO: 2024.04.25 暂时注释掉逾期任务提醒功能
+                        // 进行查询 如果数据库不存在记录 则就发送提醒并插入记录
+                        LambdaQueryWrapper<ProjectTaskNotify> qw = Wrappers.lambdaQuery(ProjectTaskNotify.class).eq(ProjectTaskNotify::getTaskId, taskNotifyDTO.getTaskId()).eq(ProjectTaskNotify::getOverdue, 0);
+                        ProjectTaskNotify existingNotify = projectTaskNotifyMapper.selectOne(qw);
+                        if (existingNotify == null) {
+                            // 进行待逾期消息提醒
+                            // TODO: 2024.04.25 暂时注释掉逾期任务提醒功能
 //                        TaskOverdueRemindDTO taskOverdueRemindDTO = new TaskOverdueRemindDTO();
 //                        // 设置任务名称
 //                        taskOverdueRemindDTO.setTaskName(taskNotifyDTO.getTaskName());
@@ -78,10 +82,7 @@ public class TaskNotifyJob {
 //                        taskOverdueRemindDTO.setUserName(taskNotifyDTO.getUserName());
 //                        taskOverdueRemindDTO.setLinkUrl(OAUtils.ssoCreate(host + "/pmhub-project/my-task/info?taskId=" + taskNotifyDTO.getTaskId()));
 //                        RocketMqUtils.push2Wx(taskOverdueRemindDTO);
-                        sendUpcomingMail(taskNotifyDTO, closeDate);
-                        // 进行查询 如果数据库不存在记录 则就插入记录
-                        LambdaQueryWrapper<ProjectTaskNotify> qw = Wrappers.lambdaQuery(ProjectTaskNotify.class).eq(ProjectTaskNotify::getTaskId, taskNotifyDTO.getTaskId()).eq(ProjectTaskNotify::getOverdue, 0);
-                        if (projectTaskNotifyMapper.selectOne(qw) == null) {
+                            sendUpcomingMail(taskNotifyDTO, closeDate);
                             // 插入记录
                             ProjectTaskNotify projectTaskNotify = new ProjectTaskNotify();
                             projectTaskNotify.setProjectId(taskNotifyDTO.getProjectId());
@@ -92,6 +93,8 @@ public class TaskNotifyJob {
                             projectTaskNotify.setCloseTime(taskNotifyDTO.getCloseTime());
                             projectTaskNotify.setTaskName(taskNotifyDTO.getTaskName());
                             projectTaskNotifyMapper.insert(projectTaskNotify);
+                        } else {
+                            log.debug("Skip upcoming mail notify because task {} already has notify record", taskNotifyDTO.getTaskId());
                         }
                         log.info("待逾期任务提醒结束");
                     }

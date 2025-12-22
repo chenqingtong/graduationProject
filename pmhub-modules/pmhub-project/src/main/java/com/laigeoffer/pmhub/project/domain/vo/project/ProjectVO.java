@@ -1,11 +1,14 @@
 package com.laigeoffer.pmhub.project.domain.vo.project;
 
+import lombok.Data;
+
 import java.util.List;
 
 /**
  * @author chenqingtong
  * @date 2024-12-12 10:27
  */
+@Data
 public class ProjectVO {
     /**
      * 页码
