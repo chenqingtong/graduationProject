@@ -341,20 +341,7 @@ public class ProjectTaskController {
 
     }
 
-    /**
-     * 优化审批设置
-     * @return
-     */
-    @PostMapping("/task/insertApprovalSet")
-    @Anonymous
-    public AjaxResult updateApprovalSet() {
-        R<?> result = wfDeployService.insertApprovalSet(SecurityConstants.INNER);
-        if (StringUtils.isNull(result) || StringUtils.isNull(result.getData())
-                || R.fail().equals(result.getData())) {
-            return AjaxResult.error("远程调用审批服务失败");
-        }
-        return AjaxResult.success();
-    }
+
 
     /**
      * 清除首页数据缓存

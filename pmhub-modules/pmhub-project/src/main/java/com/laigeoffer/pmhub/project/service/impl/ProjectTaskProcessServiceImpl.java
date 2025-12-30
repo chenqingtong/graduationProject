@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ProjectTaskProcessServiceImpl extends ServiceImpl<ProjectTaskProcessMapper, ProjectTaskProcess> implements ProjectTaskProcessService {
 
+
     private final ProjectTaskProcessMapper projectTaskProcessMapper;
     private final ProjectTaskMapper projectTaskMapper;
 
@@ -38,11 +39,11 @@ public class ProjectTaskProcessServiceImpl extends ServiceImpl<ProjectTaskProces
         queryWrapper.eq(ProjectTaskProcess::getExtraId, extraId)
                 .eq(ProjectTaskProcess::getType, type);
         ProjectTaskProcess projectTaskProcess = projectTaskProcessMapper.selectOne(queryWrapper);
-        
+
         if (projectTaskProcess == null) {
             return null;
         }
-        
+
         WfTaskProcess wfTaskProcess = new WfTaskProcess();
         BeanUtils.copyProperties(projectTaskProcess, wfTaskProcess);
         return wfTaskProcess;
@@ -54,7 +55,7 @@ public class ProjectTaskProcessServiceImpl extends ServiceImpl<ProjectTaskProces
         queryWrapper.eq(ProjectTaskProcess::getExtraId, wfTaskProcess.getExtraId())
                 .eq(ProjectTaskProcess::getType, wfTaskProcess.getType());
         ProjectTaskProcess projectTaskProcess = projectTaskProcessMapper.selectOne(queryWrapper);
-        
+
         if (projectTaskProcess == null) {
             // 新增
             projectTaskProcess = new ProjectTaskProcess();
@@ -71,7 +72,7 @@ public class ProjectTaskProcessServiceImpl extends ServiceImpl<ProjectTaskProces
             projectTaskProcess.setUpdatedTime(new Date());
             projectTaskProcessMapper.updateById(projectTaskProcess);
         }
-        
+
         WfTaskProcess result = new WfTaskProcess();
         BeanUtils.copyProperties(projectTaskProcess, result);
         return result;

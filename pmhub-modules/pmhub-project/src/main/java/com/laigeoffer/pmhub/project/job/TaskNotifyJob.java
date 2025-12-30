@@ -25,7 +25,7 @@ import java.util.List;
 
 
 /**
- * 任务待逾期提醒
+ * 任务待逾期提醒（可）
  *
  * @author chenqingtong
  * @date 2023-03-16 09:04

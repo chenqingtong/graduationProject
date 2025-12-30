@@ -86,6 +86,20 @@ public class WfDeployServiceImpl implements IWfDeployService {
         }
     }
 
+    /**
+     * 获取审批设置记录
+     * 此方法实现审批设置的查询逻辑，支持全局设置和特定任务设置的查询
+     *
+     * 查询策略：
+     * 1. 如果提供了taskId，则查询该特定任务的审批设置
+     * 2. 如果未提供taskId：
+     *    - 对于task类型，返回null（不允许全局task设置）
+     *    - 对于其他类型（如project），返回全局设置
+     *
+     * @param type 审批类型
+     * @param taskId 任务ID，可选
+     * @return WfApprovalSet 审批设置记录，如果不存在返回null
+     */
     private WfApprovalSet getMaterialsApprovalSet(String type, String taskId) {
         LambdaQueryWrapper<WfApprovalSet> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(WfApprovalSet::getType, type);
@@ -101,9 +115,31 @@ public class WfDeployServiceImpl implements IWfDeployService {
 
     /**
      * 根据类型查询审批设置
+     * 此方法用于查询不同业务类型的审批配置信息，包括是否需要审批、流程定义ID、部署ID等
      *
-     * @param type
-     * @return
+     * 业务场景：
+     * 1. 前端任务详情页面设置任务审批时调用
+     * 2. 根据任务类型(task)和任务ID查询对应的审批设置
+     * 3. 返回审批设置信息供前端展示和配置使用
+     *
+     * @param type 审批类型，取值范围：
+     *             - "task": 任务审批设置
+     *             - "project": 项目审批设置
+     *             - "template": 模板审批设置
+     *             - 其他业务类型对应的字符串标识
+     * @param taskId 任务ID，可选参数。当type为"task"时需要传入具体的任务ID进行查询
+     * @return MaterialsApprovalSetVO 审批设置信息对象，包含：
+     *         - approved: 是否需要审批 ("0":需要审批, "1":无需审批)
+     *         - type: 审批类型
+     *         - deploymentId: 流程部署ID
+     *         - definitionId: 流程定义ID
+     *         - approvalInfo: 审批人信息(JSON格式，包含assignee、candidateUsers等)
+     *
+     * 查询逻辑：
+     * 1. 根据type和taskId构建查询条件
+     * 2. 优先查询带有taskId的记录，如果不存在且type不是"task"，则查询全局设置
+     * 3. 将数据库记录转换为VO对象返回
+     * 4. 如果未找到记录，返回空的VO对象（各字段为null）
      */
     @Override
     public MaterialsApprovalSetVO queryApprovalSet(String type, String taskId) {
@@ -118,7 +154,7 @@ public class WfDeployServiceImpl implements IWfDeployService {
             materialsApprovalSetVO.setDefinitionId(wfApprovalSet.getDefinitionId());
             // 返回审批人信息
             materialsApprovalSetVO.setApprovalInfo(wfApprovalSet.getApprovalInfo());
-            log.info("返回审批设置数据，approved: {}, approvalInfo: {}", 
+            log.info("返回审批设置数据，approved: {}, approvalInfo: {}",
                     materialsApprovalSetVO.getApproved(), materialsApprovalSetVO.getApprovalInfo());
         } else {
             log.warn("未查询到审批设置记录，type: {}, taskId: {}", type, taskId);

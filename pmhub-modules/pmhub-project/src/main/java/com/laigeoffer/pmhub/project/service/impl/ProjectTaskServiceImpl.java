@@ -326,26 +326,56 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         return sysUsers.get(0).getNickName();
     }
 
+    /**
+     * 批量填充任务执行人昵称信息
+     * 
+     * 功能说明：
+     * 1. 对于执行人昵称为空的任务，通过用户ID批量查询用户信息获取昵称
+     * 2. 将获取到的昵称填充到任务对象中（用于前端显示）
+     * 3. 同时更新数据库中的执行人昵称字段（避免下次查询时再次调用用户服务）
+     * 
+     * 性能优化：
+     * - 使用批量查询而非逐个查询，减少远程调用次数
+     * - 只查询需要填充昵称的任务（userId不为空且executor为空）
+     * - 使用Map缓存用户信息，避免重复查询
+     * 
+     * @param tasks 任务列表，需要填充执行人信息的任务对象集合
+     */
     private void fillExecutorInfo(List<TaskResVO> tasks) {
+        // 1. 筛选出需要填充执行人昵称的任务（有用户ID但昵称为空）
         List<Long> needResolveUserIds = tasks.stream()
                 .filter(task -> Objects.nonNull(task.getUserId()) && StringUtils.isBlank(task.getExecutor()))
                 .map(TaskResVO::getUserId)
-                .distinct()
+                .distinct()  // 去重，避免重复查询同一用户
                 .collect(Collectors.toList());
+        
+        // 2. 如果没有需要填充的任务，直接返回
         if (CollectionUtils.isEmpty(needResolveUserIds)) {
             return;
         }
+        
+        // 3. 批量查询用户信息（远程调用用户服务）
         List<SysUser> sysUsers = getSysUserList(needResolveUserIds);
+        
+        // 4. 构建用户ID到用户对象的映射表（便于快速查找）
         Map<Long, SysUser> userMap = sysUsers.stream()
                 .collect(Collectors.toMap(SysUser::getUserId, user -> user, (existing, replacement) -> existing));
+        
+        // 5. 用于记录需要更新到数据库的任务ID和昵称映射关系
         Map<String, String> assignToUpdateMap = new HashMap<>();
+        
+        // 6. 遍历任务列表，填充执行人昵称
         tasks.forEach(task -> {
+            // 只处理执行人昵称为空的任务
             if (StringUtils.isBlank(task.getExecutor())) {
                 SysUser sysUser = userMap.get(task.getUserId());
                 if (Objects.nonNull(sysUser)) {
                     String nickName = sysUser.getNickName();
                     if (StringUtils.isNotBlank(nickName)) {
+                        // 6.1 填充到任务对象中（用于本次返回给前端）
                         task.setExecutor(nickName);
+                        
+                        // 6.2 记录需要更新到数据库的任务（异步更新，避免影响查询性能）
                         if (StringUtils.isNotBlank(task.getTaskId())) {
                             assignToUpdateMap.put(task.getTaskId(), nickName);
                         }
@@ -353,6 +383,8 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
                 }
             }
         });
+        
+        // 7. 批量更新数据库中的执行人昵称字段（持久化，避免下次查询时再次调用用户服务）
         if (!assignToUpdateMap.isEmpty()) {
             assignToUpdateMap.forEach((taskId, nickName) -> projectTaskMapper.updateAssignTo(taskId, nickName));
         }
@@ -401,29 +433,52 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         return list;
     }
 
+    /**
+     * 查询我的任务列表（分页）
+     * 根据当前登录用户ID查询任务列表，并进行数据填充和格式化处理
+     *
+     * @param taskReqVO 任务查询请求对象，包含分页参数、项目ID、任务类型等查询条件
+     * @return 分页的任务列表，包含任务详情、状态名称、优先级名称、执行人信息等
+     */
     @Override
     public PageInfo<TaskResVO> list(TaskReqVO taskReqVO) {
+        // 1. 开启分页查询（使用PageHelper进行物理分页）
         PageHelper.startPage(taskReqVO.getPageNum(), taskReqVO.getPageSize());
+        
+        // 2. 根据查询条件和当前用户ID查询任务列表
         List<TaskResVO> list = projectTaskMapper.list(taskReqVO, SecurityUtils.getUserId());
+        
+        // 3. 如果查询结果为空，直接返回空的分页对象
         if (CollectionUtils.isEmpty(list)) {
             return new PageInfo<>(list);
         }
+        
+        // 4. 遍历任务列表，填充显示字段和扩展信息
         list.forEach(a -> {
+            // 4.1 构建工作流相关信息对象（用于前端展示审批流程状态）
             WorkFlowable workFlowable = new WorkFlowable();
-            workFlowable.setTaskId(a.getTaskProcessId());
-            workFlowable.setApproved(a.getApproved());
-            workFlowable.setDeploymentId(a.getDeployId());
-            workFlowable.setProcInsId(a.getProcInsId());
-            workFlowable.setDefinitionId(a.getDefinitionId());
+            workFlowable.setTaskId(a.getTaskProcessId());        // 流程任务ID
+            workFlowable.setApproved(a.getApproved());          // 是否需要审批
+            workFlowable.setDeploymentId(a.getDeployId());      // 流程部署ID
+            workFlowable.setProcInsId(a.getProcInsId());        // 流程实例ID
+            workFlowable.setDefinitionId(a.getDefinitionId());  // 流程定义ID
             a.setWorkFlowable(workFlowable);
-            a.setTaskPriorityName(ProjectTaskPriorityEnum.getStatusNameByStatus(a.getTaskPriority()));
-            a.setStatusName(ProjectTaskStatusEnum.getStatusNameByStatus(a.getStatus()));
-            a.setExecuteStatusName(ProjectTaskStatusEnum.getStatusNameByStatus(a.getExecuteStatus()));
+            
+            // 4.2 将枚举值转换为对应的中文名称（用于前端显示）
+            a.setTaskPriorityName(ProjectTaskPriorityEnum.getStatusNameByStatus(a.getTaskPriority()));  // 任务优先级名称
+            a.setStatusName(ProjectTaskStatusEnum.getStatusNameByStatus(a.getStatus()));              // 任务状态名称
+            a.setExecuteStatusName(ProjectTaskStatusEnum.getStatusNameByStatus(a.getExecuteStatus())); // 执行状态名称
+            
+            // 4.3 计算任务周期（预计完成时间 - 预计开始时间，单位：天）
             if (a.getEndTime() != null && a.getBeginTime() != null) {
                 a.setPeriod(DateUtils.differentDaysByMillisecond(a.getEndTime(), a.getBeginTime()));
             }
         });
+        
+        // 5. 批量填充执行人昵称信息（如果数据库中的执行人昵称为空，则从用户服务获取）
         fillExecutorInfo(list);
+        
+        // 6. 返回分页结果
         return new PageInfo<>(list);
     }
 
@@ -799,43 +854,91 @@ public class ProjectTaskServiceImpl extends ServiceImpl<ProjectTaskMapper, Proje
         return taskResVOList;
     }
 
+    /**
+     * 生成项目燃尽图数据
+     * 
+     * 燃尽图（Burn Down Chart）用于可视化项目进度，显示：
+     * 1. 任务总数：随时间变化的累计任务数
+     * 2. 未完成任务数：实际剩余的工作量（实际燃尽线）
+     * 3. 基线任务数：理想情况下应该完成的任务数（理想燃尽线/基线）
+     * 
+     * 通过对比实际燃尽线和理想燃尽线，可以判断项目进度是否正常。
+     * 
+     * @param projectVO 项目视图对象，包含项目ID
+     * @return 燃尽图数据列表，按日期排序，每个日期包含任务总数、未完成任务数、基线任务数
+     */
     @Override
     public List<BurnDownChartVO> burnDownChart(ProjectVO projectVO) {
         List<BurnDownChartVO> list = new ArrayList<>(10);
+        
+        // 1. 查询项目下所有任务，按创建时间升序排序
         LambdaQueryWrapper<ProjectTask> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(ProjectTask::getProjectId, projectVO.getProjectId()).orderByAsc(ProjectTask::getCreatedTime);
         List<ProjectTask> projectTasks = projectTaskMapper.selectList(queryWrapper);
 
         if (CollectionUtils.isNotEmpty(projectTasks)) {
+            // 2. 获取第一个任务的创建时间作为燃尽图的起始日期
             Date createdTime = projectTasks.get(0).getCreatedTime();
             String beginDate = DateUtils.dateTime(createdTime);
             String endDate = DateUtils.dateTime(new Date());
+            
+            // 3. 生成从项目开始日期到当前日期的所有日期列表（每一天一个数据点）
             List<String> betweenDate = DateUtils.getBetweenDate(beginDate, endDate);
+            
+            // 4. 遍历每个日期，计算该日期的燃尽图数据
             betweenDate.forEach(date -> {
+                // 4.1 将当前日期转换为LocalDate，并加1天作为查询截止时间（查询该日期之前创建的任务）
                 LocalDate now = LocalDate.parse(date, DateTimeFormatter.ofPattern(DateUtils.YYYY_MM_DD)).plusDays(1);
+                
                 BurnDownChartVO burnDownChartVO = new BurnDownChartVO();
                 burnDownChartVO.setDate(date);
+                
+                // 4.2 查询在该日期之前创建的所有任务
                 LambdaQueryWrapper<ProjectTask> qw = new LambdaQueryWrapper<>();
                 qw.eq(ProjectTask::getProjectId, projectVO.getProjectId()).lt(ProjectTask::getCreatedTime, now);
                 List<ProjectTask> projectTasks2 = projectTaskMapper.selectList(qw);
+                
+                // 4.3 计算任务总数（累计创建的任务数）
                 burnDownChartVO.setTaskNum(projectTasks2.size());
-                burnDownChartVO.setUnDoneTaskNum((int) projectTasks2.stream().filter(a -> !Objects.equals(a.getStatus(), ProjectTaskStatusEnum.FINISHED.getStatus())).count());
-                burnDownChartVO.setBaseLineNum((int) projectTasks2.stream().filter(a -> !Objects.equals(a.getStatus(), ProjectTaskStatusEnum.FINISHED.getStatus())).filter(o -> {
-                    if (o.getEndTime() == null) {
-                        if (o.getCreatedTime() != null) {
-                            Instant instant = o.getCreatedTime().toInstant();
-                            ZoneId zoneId = ZoneId.systemDefault();
-                            LocalDate create = instant.atZone(zoneId).toLocalDate();
-                            return create.plusDays(5).isAfter(now);
-                        }
-                        return true;
-                    } else {
-                        Instant instant = o.getEndTime().toInstant();
-                        ZoneId zoneId = ZoneId.systemDefault();
-                        LocalDate end = instant.atZone(zoneId).toLocalDate();
-                        return end.plusDays(-1).isBefore(now);
-                    }
-                }).count());
+                
+                // 4.4 计算未完成任务数（实际剩余工作量 - 实际燃尽线）
+                // 统计状态不是"已完成"的任务数量
+                burnDownChartVO.setUnDoneTaskNum((int) projectTasks2.stream()
+                        .filter(a -> !Objects.equals(a.getStatus(), ProjectTaskStatusEnum.FINISHED.getStatus()))
+                        .count());
+                
+                // 4.5 计算基线任务数（理想情况下应该完成的任务数 - 理想燃尽线）
+                // 基线任务 = 未完成任务中，已经超过预计完成时间的任务数
+                // 用于绘制理想燃尽曲线，判断项目进度是否正常
+                burnDownChartVO.setBaseLineNum((int) projectTasks2.stream()
+                        .filter(a -> !Objects.equals(a.getStatus(), ProjectTaskStatusEnum.FINISHED.getStatus()))
+                        .filter(o -> {
+                            // 情况A：任务没有设置预计完成时间（endTime为空）
+                            if (o.getEndTime() == null) {
+                                // 如果任务有创建时间，判断创建时间+5天是否已经小于等于当前日期
+                                // 即：任务创建后5天内应该完成，如果超过5天还没完成，则算作基线任务
+                                if (o.getCreatedTime() != null) {
+                                    Instant instant = o.getCreatedTime().toInstant();
+                                    ZoneId zoneId = ZoneId.systemDefault();
+                                    LocalDate create = instant.atZone(zoneId).toLocalDate();
+                                    // 创建时间+5天已经小于等于当前日期，说明已经超过5天但任务未完成，算作基线任务
+                                    // 如果创建时间+5天还在当前日期之后，说明还有时间完成，不算基线任务
+                                    return !create.plusDays(5).isAfter(now);
+                                }
+                                // 如果没有创建时间，默认算作基线任务
+                                return true;
+                            } 
+                            // 情况B：任务设置了预计完成时间（endTime不为空）
+                            else {
+                                Instant instant = o.getEndTime().toInstant();
+                                ZoneId zoneId = ZoneId.systemDefault();
+                                LocalDate end = instant.atZone(zoneId).toLocalDate();
+                                // 预计完成时间-1天小于当前日期，说明已经过了预计完成时间但任务未完成
+                                // 即：已经逾期但未完成的任务，算作基线任务
+                                return end.plusDays(-1).isBefore(now);
+                            }
+                        }).count());
+                
                 list.add(burnDownChartVO);
             });
         }
